@@ -31,14 +31,12 @@ $user_id = $_SESSION['user_id'];
 // FONCTION POUR CRÉER UNE NOUVELLE CONNEXION MYSQL
 // ============================================================
 function createNewConnection() {
-    $new_conn = new mysqli('localhost', 'u641337841_test_uvcoding', 'Test_uvcoding/8', 'u641337841_test_uvcoding');
-    $new_conn->set_charset("utf8mb4");
-    $new_conn->query("SET collation_connection = 'utf8mb4_general_ci'");
-    if ($new_conn->connect_error) {
-        error_log("❌ Échec de connexion: " . $new_conn->connect_error);
+    try {
+        return get_db_connection();
+    } catch (\Throwable $e) {
+        error_log("❌ Échec de connexion: " . $e->getMessage());
         return false;
     }
-    return $new_conn;
 }
 
 // ============================================================

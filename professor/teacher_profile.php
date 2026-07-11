@@ -8,9 +8,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 try {
-    $pdo = new PDO("mysql:host=$servername;dbname=$dbname", $username, $password);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    $pdo->exec("SET NAMES utf8mb4");
+    $pdo = get_pdo_connection();
 } catch (PDOException $e) {
     die("Erreur de connexion : " . $e->getMessage());
 }

@@ -14,7 +14,8 @@
       "Bash(/Applications/XAMPP/xamppfiles/bin/mysql -u root uvcoding -e ' *)",
       "Bash(grep -n \"CREATE TABLE \\\\`users\\\\`\" -A 30 /Applications/XAMPP/xamppfiles/htdocs/img/uvcoding.sql)",
       "Bash(awk '/CREATE TABLE `users`/,/ENGINE/' /Applications/XAMPP/xamppfiles/htdocs/img/uvcoding.sql)",
-      "Bash(grep -n '\\\\$conn\\\\s*=' /Applications/XAMPP/xamppfiles/htdocs/img/includes/db_connect.php)"
+      "Bash(grep -n '\\\\$conn\\\\s*=' /Applications/XAMPP/xamppfiles/htdocs/img/includes/db_connect.php)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }

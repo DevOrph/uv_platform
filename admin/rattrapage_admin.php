@@ -9,10 +9,9 @@ if ($_SESSION['role'] !== 'admin') {
 
 $admin_id = $_SESSION['user_id'];
 
-// Connexion PDO en réutilisant les credentials de db_connect.php
+// Connexion PDO via le helper central (config .env)
 try {
-    $pdo = new PDO("mysql:host=$servername;dbname=$dbname;charset=utf8mb4", $username, $password);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $pdo = get_pdo_connection();
     $pdo->exec("SET NAMES utf8mb4 COLLATE utf8mb4_general_ci");
 } catch (PDOException $e) {
     die("Erreur PDO : " . $e->getMessage());

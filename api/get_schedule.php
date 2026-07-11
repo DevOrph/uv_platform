@@ -12,23 +12,7 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-// Charger les variables d'environnement
-require_once '../load_env.php';
-loadEnv();
-
-
-// Création de la connexion
-$conn = new mysqli($host, $username, $password, $dbname);
-
-// Vérifier la connexion
-if ($conn->connect_error) {
-    header('Content-Type: application/json');
-    echo json_encode([
-        'success' => false,
-        'message' => 'Erreur de connexion à la base de données'
-    ]);
-    exit();
-}
+// $conn est fourni par includes/db_connect.php (config .env)
 
 // Paramètres de filtrage
 $user_id = $_SESSION['user_id'];
