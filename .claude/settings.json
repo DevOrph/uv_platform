@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -n '\\\\$servername\\\\|\\\\$username\\\\|\\\\$password\\\\|\\\\$dbname\\\\|new PDO\\\\|new mysqli' /Applications/XAMPP/xamppfiles/htdocs/img/professor/teacher_dashboard.php /Applications/XAMPP/xamppfiles/htdocs/img/professor/courses.php /Applications/XAMPP/xamppfiles/htdocs/img/admin/course_management.php)",
+      "Bash(/Applications/XAMPP/xamppfiles/bin/php -r ' *)",
+      "Bash(grep -n \"CREATE TABLE \\\\`admin\\\\|superadmin\\\\|super_admin\\\\|is_super\" /Applications/XAMPP/xamppfiles/htdocs/img/uvcoding.sql)",
+      "Bash(/Applications/XAMPP/xamppfiles/bin/mysql -u root uvcoding -e \"SHOW TABLES LIKE '%permission%'; DESCRIBE exam_permissions;\")",
+      "Bash(/Applications/XAMPP/xamppfiles/bin/mysql -u root uvcoding)",
+      "Bash(/Applications/XAMPP/xamppfiles/bin/mysql -u root uvcoding -e \"SELECT id, name, role, is_super_admin FROM users WHERE role='admin';\")",
+      "Bash(/Applications/XAMPP/xamppfiles/bin/php -l /Applications/XAMPP/xamppfiles/htdocs/img/professor/grades_management.php)",
+      "Bash(/Applications/XAMPP/xamppfiles/bin/mysql -u root uvcoding -e \"SHOW TABLES LIKE 'quiz%'; SELECT cle, valeur FROM parametres WHERE cle='verrou_notes_jours'; SELECT id, is_super_admin FROM users WHERE role='admin'; SELECT COUNT\\(*\\) AS types_quiz FROM evaluation_types WHERE name='Quiz';\")",
+      "Bash(php -l /Applications/XAMPP/xamppfiles/htdocs/img/professor/manage_discussions.php)",
+      "Bash(php -l /Applications/XAMPP/xamppfiles/htdocs/img/includes/fetch_messages.php)",
+      "Bash(/Applications/XAMPP/xamppfiles/bin/mysql -u root uvcoding -e ' *)",
+      "Bash(grep -n \"CREATE TABLE \\\\`users\\\\`\" -A 30 /Applications/XAMPP/xamppfiles/htdocs/img/uvcoding.sql)",
+      "Bash(awk '/CREATE TABLE `users`/,/ENGINE/' /Applications/XAMPP/xamppfiles/htdocs/img/uvcoding.sql)",
+      "Bash(grep -n '\\\\$conn\\\\s*=' /Applications/XAMPP/xamppfiles/htdocs/img/includes/db_connect.php)"
+    ]
+  }
+}

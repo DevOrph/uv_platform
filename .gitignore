@@ -1,0 +1,19 @@
+.env
+.env.local
+.env.production
+vendor/
+uploads/
+*.log
+
+# Dumps SQL (contiennent des données personnelles réelles)
+uvcoding.sql
+*.sql.gz
+
+# Copies / sites indépendants
+UV/
+UV 5/
+
+# Caches et fichiers système
+admin/cache_ip_geo/
+uv-api-mobile/logs/
+.DS_Store

@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="3;url=pages/login.html">
+    
+    <!-- Meta tags SEO -->
+    <title>Université Virtuelle - Plateforme d'apprentissage en ligne</title>
+    <meta name="description" content="Accédez à votre espace étudiant de l'Université Virtuelle. Cours en ligne, ressources pédagogiques et suivi personnalisé.">
+    <meta name="keywords" content="université virtuelle, formation en ligne, e-learning, cours à distance">
+    <meta name="author" content="Université Virtuelle">
+    <meta name="robots" content="index, follow">
+    
+    <!-- Open Graph / Facebook / WhatsApp -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://uas.uvcoding.com/">
+    <meta property="og:title" content="Université Virtuelle - Plateforme d'apprentissage">
+    <meta property="og:description" content="Accédez à votre espace étudiant de l'Université Virtuelle. Cours en ligne et ressources pédagogiques.">
+    <meta property="og:image" content="https://uas.uvcoding.com/UV.png">
+    <meta property="og:image:secure_url" content="https://uas.uvcoding.com/UV.png">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Logo Université Virtuelle">
+    <meta property="og:site_name" content="Université Virtuelle">
+    <meta property="og:locale" content="fr_FR">
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://uas.uvcoding.com/">
+    <meta name="twitter:title" content="Université Virtuelle - Plateforme d'apprentissage">
+    <meta name="twitter:description" content="Accédez à votre espace étudiant de l'Université Virtuelle">
+    <meta name="twitter:image" content="https://uas.uvcoding.com/UV.png">
+    <meta name="twitter:image:alt" content="Logo Université Virtuelle">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="UV.png">
+    <link rel="apple-touch-icon" href="UV.png">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary-color: #051e34;
+            --accent-color: rgba(3, 155, 229, 0.5);
+            --text-color: #ffffff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #051e34;
+            color: #ffffff;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Floating Icons Background - Verticaux */
+        .floating-icons {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .floating-icon {
+            position: absolute;
+            font-size: 20px;
+            color: rgba(3, 155, 229, 0.5);
+            opacity: 0;
+            animation: floatIcon 3s ease-in-out infinite;
+        }
+
+        .floating-icon:nth-child(1) { 
+            left: 10%; 
+            top: 20%; 
+            animation-delay: 0s; 
+        }
+        .floating-icon:nth-child(2) { 
+            left: 30%; 
+            top: 60%; 
+            animation-delay: 0.5s; 
+        }
+        .floating-icon:nth-child(3) { 
+            left: 50%; 
+            top: 30%; 
+            animation-delay: 1s; 
+        }
+        .floating-icon:nth-child(4) { 
+            left: 70%; 
+            top: 50%; 
+            animation-delay: 1.5s; 
+        }
+        .floating-icon:nth-child(5) { 
+            left: 90%; 
+            top: 40%; 
+            animation-delay: 2s; 
+        }
+
+        @keyframes floatIcon {
+            0% { transform: translateY(100%); opacity: 0; }
+            50% { opacity: 0.3; }
+            100% { transform: translateY(-100%); opacity: 0; }
+        }
+
+        /* Bande horizontale orange en haut */
+        .top-banner {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background-color: #f39c12;
+            color: white;
+            padding: 15px;
+            overflow: hidden;
+            z-index: 100;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .banner-content {
+            display: flex;
+            animation: scroll-left 20s linear infinite;
+            white-space: nowrap;
+        }
+
+        .banner-item {
+            padding: 0 40px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 500;
+            font-size: 15px;
+        }
+
+        .banner-item i {
+            font-size: 18px;
+        }
+
+        @keyframes scroll-left {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        /* Logos UV flottants horizontalement */
+        .floating-logos {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 2;
+            overflow: hidden;
+        }
+
+        .uv-logo {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #ffa726 0%, #ffb74d 50%, #039be5 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: bold;
+            color: #051e34;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            animation: floatHorizontal 8s ease-in-out infinite;
+        }
+
+        .uv-logo:nth-child(1) {
+            top: 15%;
+            animation-delay: 0s;
+        }
+
+        .uv-logo:nth-child(2) {
+            top: 40%;
+            animation-delay: 2s;
+        }
+
+        .uv-logo:nth-child(3) {
+            top: 65%;
+            animation-delay: 4s;
+        }
+
+        .uv-logo:nth-child(4) {
+            top: 85%;
+            animation-delay: 6s;
+        }
+
+        @keyframes floatHorizontal {
+            0% {
+                left: -100px;
+                opacity: 0;
+                transform: rotate(0deg) scale(0.8);
+            }
+            10% {
+                opacity: 0.6;
+            }
+            50% {
+                opacity: 0.8;
+                transform: rotate(180deg) scale(1);
+            }
+            90% {
+                opacity: 0.6;
+            }
+            100% {
+                left: calc(100% + 100px);
+                opacity: 0;
+                transform: rotate(360deg) scale(0.8);
+            }
+        }
+
+        /* Container principal */
+        .splash-container {
+            text-align: center;
+            z-index: 10;
+            position: relative;
+            padding: 40px;
+            animation: fadeInScale 0.8s ease-out;
+        }
+
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        /* Logo principal */
+        .logo-container {
+            margin-bottom: 30px;
+            animation: bounceIn 1s ease-out;
+        }
+
+        .logo {
+            width: 150px;
+            height: 150px;
+            margin: 0 auto;
+            background: linear-gradient(135deg, #ffa726 0%, #ffb74d 50%, #039be5 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 15px 50px rgba(3, 155, 229, 0.4);
+            animation: pulse 2s ease-in-out infinite;
+            position: relative;
+        }
+
+        .logo::before {
+            content: '';
+            position: absolute;
+            width: 170px;
+            height: 170px;
+            border-radius: 50%;
+            border: 3px solid rgba(3, 155, 229, 0.3);
+            animation: ripple 2s ease-out infinite;
+        }
+
+        .logo-text {
+            font-size: 60px;
+            font-weight: bold;
+            color: #051e34;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        @keyframes bounceIn {
+            0% {
+                transform: scale(0);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.1);
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 15px 50px rgba(3, 155, 229, 0.4);
+            }
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 20px 60px rgba(3, 155, 229, 0.6);
+            }
+        }
+
+        @keyframes ripple {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(1.3);
+                opacity: 0;
+            }
+        }
+
+        /* Titre */
+        h1 {
+            font-size: 2.8rem;
+            margin-bottom: 15px;
+            color: #039be5;
+            animation: slideInFromLeft 0.8s ease-out 0.3s both;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        @keyframes slideInFromLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* Sous-titre */
+        .subtitle {
+            font-size: 1.3rem;
+            margin-bottom: 40px;
+            color: rgba(255, 255, 255, 0.9);
+            animation: slideInFromRight 0.8s ease-out 0.5s both;
+            font-weight: 300;
+        }
+
+        @keyframes slideInFromRight {
+            from {
+                opacity: 0;
+                transform: translateX(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* Loader modernisé */
+        .loader-container {
+            margin: 30px auto;
+            animation: fadeIn 0.8s ease-out 0.7s both;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .loader {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .loader-circle {
+            width: 100%;
+            height: 100%;
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-top: 4px solid #039be5;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            position: absolute;
+        }
+
+        .loader-circle:nth-child(2) {
+            border-top-color: #ffa726;
+            animation-duration: 1.5s;
+            animation-direction: reverse;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Barre de progression */
+        .progress-container {
+            width: 300px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            margin: 30px auto 20px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #039be5, #ffa726, #039be5);
+            background-size: 200% 100%;
+            border-radius: 10px;
+            animation: progressAnimation 3s ease-out, shimmer 2s infinite linear;
+            box-shadow: 0 0 15px rgba(3, 155, 229, 0.6);
+        }
+
+        @keyframes progressAnimation {
+            from {
+                width: 0%;
+            }
+            to {
+                width: 100%;
+            }
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: 200% 0;
+            }
+            100% {
+                background-position: -200% 0;
+            }
+        }
+
+        /* Message de chargement */
+        .loading-text {
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.9);
+            margin-top: 20px;
+            animation: blink 1.5s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% {
+                opacity: 0.9;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        /* Points animés */
+        .dots {
+            display: inline-block;
+            margin-left: 5px;
+        }
+
+        .dots span {
+            animation: dotBlink 1.4s infinite;
+            opacity: 0;
+        }
+
+        .dots span:nth-child(1) {
+            animation-delay: 0s;
+        }
+
+        .dots span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .dots span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes dotBlink {
+            0%, 20% {
+                opacity: 0;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0;
+            }
+        }
+
+        /* Signature Coding Enterprise */
+        .enterprise-signature {
+            margin-top: 40px;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+            font-style: italic;
+            letter-spacing: 0.5px;
+            animation: fadeIn 1s ease-out 1.5s both;
+            position: relative;
+            padding-top: 15px;
+        }
+
+        .enterprise-signature::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(3, 155, 229, 0.5), transparent);
+        }
+
+        .enterprise-signature strong {
+            color: #ffa726;
+            font-weight: 600;
+            text-shadow: 0 0 10px rgba(255, 167, 38, 0.3);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+
+            .subtitle {
+                font-size: 1rem;
+            }
+
+            .logo {
+                width: 120px;
+                height: 120px;
+            }
+
+            .logo-text {
+                font-size: 48px;
+            }
+
+            .progress-container {
+                width: 250px;
+            }
+
+            .uv-logo {
+                width: 60px;
+                height: 60px;
+                font-size: 24px;
+            }
+
+            .banner-item {
+                font-size: 13px;
+            }
+            
+            .enterprise-signature {
+                margin-top: 30px;
+                font-size: 0.8rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .subtitle {
+                font-size: 0.9rem;
+            }
+
+            .splash-container {
+                padding: 20px;
+            }
+
+            .logo {
+                width: 100px;
+                height: 100px;
+            }
+
+            .logo-text {
+                font-size: 40px;
+            }
+            
+            .enterprise-signature {
+                margin-top: 25px;
+                font-size: 0.75rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Bande orange défilante en haut -->
+    <div class="top-banner">
+        <div class="banner-content">
+            <div class="banner-item">
+                <i class="fas fa-graduation-cap"></i>
+                L'ADMINISTRATION DE L'UAS VOUS SOUHAITE LA BIENVENUE SUR L'UNIVERSITÉ VIRTUELLE (UV)
+            </div>
+            <div class="banner-item">
+                <i class="fas fa-book-open"></i>
+                ACCÉDEZ À VOS COURS EN LIGNE
+            </div>
+            <div class="banner-item">
+                <i class="fas fa-certificate"></i>
+                EXCELLENCE ACADÉMIQUE
+            </div>
+            <div class="banner-item">
+                <i class="fas fa-graduation-cap"></i>
+                L'ADMINISTRATION DE L'UAS VOUS SOUHAITE LA BIENVENUE SUR L'UNIVERSITÉ VIRTUELLE (UV)
+            </div>
+            <div class="banner-item">
+                <i class="fas fa-book-open"></i>
+                ACCÉDEZ À VOS COURS EN LIGNE
+            </div>
+            <div class="banner-item">
+                <i class="fas fa-certificate"></i>
+                EXCELLENCE ACADÉMIQUE
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Icons Background verticaux -->
+    <div class="floating-icons">
+        <i class="floating-icon fas fa-graduation-cap"></i>
+        <i class="floating-icon fas fa-book"></i>
+        <i class="floating-icon fas fa-user-graduate"></i>
+        <i class="floating-icon fas fa-certificate"></i>
+        <i class="floating-icon fas fa-microscope"></i>
+    </div>
+
+    <!-- Logos UV flottants horizontalement -->
+    <div class="floating-logos">
+        <div class="uv-logo">UV</div>
+        <div class="uv-logo">UV</div>
+        <div class="uv-logo">UV</div>
+        <div class="uv-logo">UV</div>
+    </div>
+
+    <!-- Container principal -->
+    <div class="splash-container">
+        <div class="logo-container">
+            <div class="logo">
+                <div class="logo-text">UV</div>
+            </div>
+        </div>
+
+        <h1>Université Virtuelle</h1>
+        <p class="subtitle">Votre plateforme d'apprentissage en ligne</p>
+
+        <div class="loader-container">
+            <div class="loader">
+                <div class="loader-circle"></div>
+                <div class="loader-circle"></div>
+            </div>
+        </div>
+
+        <div class="progress-container">
+            <div class="progress-bar"></div>
+        </div>
+
+        <p class="loading-text">
+            Redirection en cours<span class="dots"><span>.</span><span>.</span><span>.</span></span>
+        </p>
+        
+        <!-- Signature Coding Enterprise ajoutée ici -->
+        <div class="enterprise-signature">
+            <strong>from Coding Enterprise</strong>
+        </div>
+    </div>
+
+    <script>
+        // Animation de compteur pour la redirection
+        let countdown = 3;
+        const loadingText = document.querySelector('.loading-text');
+        
+        const countdownInterval = setInterval(() => {
+            countdown--;
+            if (countdown > 0) {
+                loadingText.innerHTML = `Redirection dans ${countdown} seconde${countdown > 1 ? 's' : ''}<span class="dots"><span>.</span><span>.</span><span>.</span></span>`;
+            } else {
+                loadingText.innerHTML = 'Redirection<span class="dots"><span>.</span><span>.</span><span>.</span></span>';
+                clearInterval(countdownInterval);
+            }
+        }, 1000);
+
+        // Précharger la page de destination
+        const link = document.createElement('link');
+        link.rel = 'prefetch';
+        link.href = 'pages/login.html';
+        document.head.appendChild(link);
+    </script>
+</body>
+</html>

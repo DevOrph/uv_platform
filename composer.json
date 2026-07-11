@@ -1,0 +1,10 @@
+{
+    "require": {
+        "phpoffice/phpspreadsheet": "^5.8",
+        "dompdf/dompdf": "^2.0",
+        "tecnickcom/tcpdf": "^6.7",
+        "phpmailer/phpmailer": "^6.10",
+        "sendgrid/sendgrid": "^8.1",
+        "firebase/php-jwt": "^7.0"
+    }
+}

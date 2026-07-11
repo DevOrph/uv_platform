@@ -1,0 +1,15 @@
+Options -Indexes
+
+RewriteEngine On
+RewriteBase /uv-api-mobile/v2/
+
+# Bloquer l'accès direct aux fichiers internes
+RewriteRule ^(config|helpers|middleware|controllers|migrations)/ - [F,L]
+
+# Autoriser l'accès au endpoint de debug (?debug=1 sur index.php)
+RewriteRule ^index\.php$ - [L]
+
+# Tout le reste → index.php (préserve PATH_INFO et query string)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php/$1 [QSA,L]

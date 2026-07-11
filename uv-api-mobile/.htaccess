@@ -1,0 +1,19 @@
+# Protection de l'API
+<Files ".htaccess">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# Empêcher l'affichage des dossiers
+Options -Indexes
+
+# Protection des logs
+<FilesMatch "\.(log|sql)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Forcer HTTPS (optionnel, décommenter en production)
+# RewriteEngine On
+# RewriteCond %{HTTPS} off
+# RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]

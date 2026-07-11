@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion - Université Virtuelle</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #0a1c2e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            background-color: #fff;
+            width: 100%;
+            max-width: 800px;
+            min-height: 400px;
+            border-radius: 15px;
+            display: flex;
+            overflow: hidden;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            flex-direction: row;
+        }
+        
+        .left-panel {
+            flex: 1;
+            background-color: #0a1c2e;
+            color: white;
+            padding: 40px 30px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            background-image: linear-gradient(rgba(10, 28, 46, 0.9), rgba(10, 28, 46, 0.95));
+            background-size: cover;
+            background-position: center;
+        }
+        
+        .right-panel {
+            flex: 1;
+            padding: 40px 30px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            align-items: center;
+        }
+        
+        .circle {
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            background-color: #072442;
+            border-radius: 50%;
+            bottom: -50px;
+            left: -50px;
+            z-index: 1;
+            opacity: 0.8;
+        }
+        
+        .circle-large {
+            position: absolute;
+            width: 220px;
+            height: 220px;
+            background-color: #072442;
+            border-radius: 50%;
+            bottom: -100px;
+            right: -80px;
+            z-index: 1;
+            opacity: 0.8;
+        }
+        
+        .welcome-text {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            position: relative;
+            z-index: 10;
+            color: #ff9500;
+        }
+        
+        .headline {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 25px;
+            position: relative;
+            z-index: 10;
+            color: #fff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .lorem-text {
+            font-size: 14px;
+            line-height: 1.8;
+            opacity: 0.9;
+            margin-bottom: 15px;
+            position: relative;
+            z-index: 10;
+        }
+        
+        .highlight-text {
+            color: #ff9500;
+            font-weight: 600;
+        }
+        
+        .features-container {
+            display: flex;
+            justify-content: space-between;
+            margin: 25px 0;
+            position: relative;
+            z-index: 10;
+        }
+        
+        .feature-item {
+            text-align: center;
+            flex: 1;
+        }
+        
+        .feature-icon {
+            font-size: 24px;
+            color: #ff9500;
+            margin-bottom: 5px;
+        }
+        
+        .feature-label {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+        
+        .connexion-title {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 30px;
+            width: 100%;
+            text-align: center;
+            color: #0a1c2e;
+        }
+        
+        .logo-container {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        
+        .logo {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 2px solid #ff9500;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .logo::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: linear-gradient(135deg, rgba(255,0,0,0.1) 0%, rgba(255,149,0,0.3) 100%);
+            z-index: 1;
+        }
+        
+        .logo-text {
+            font-size: 36px;
+            font-weight: bold;
+            color: #0a1c2e;
+            z-index: 2;
+        }
+        
+        .university-name {
+            font-size: 18px;
+            color: #333;
+            margin-top: 5px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+            position: relative;
+            width: 100%;
+        }
+        
+        .input-field {
+            width: 100%;
+            padding: 12px 12px 12px 40px;
+            border: 1px solid #ff9500;
+            border-radius: 25px;
+            font-size: 14px;
+            background-color: #f9f9f9;
+        }
+        
+        .icon {
+            position: absolute;
+            left: 15px;
+            top: 12px;
+            color: #0a1c2e;
+        }
+        
+        .login-btn {
+            width: 100%;
+            padding: 12px;
+            background: #ff9500;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .login-btn:hover {
+            background: #ff8c00;
+        }
+        
+        .forgot-link {
+            color: #0a1c2e;
+            text-decoration: none;
+            font-size: 14px;
+            text-align: center;
+            margin-top: auto;
+            padding-top: 10px;
+        }
+        
+        .forgot-link:hover {
+            color: #ff9500;
+        }
+        
+        .corner-circle {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            background-color: #ff9500;
+            border-radius: 50%;
+            bottom: -50px;
+            right: -50px;
+            z-index: 1;
+            opacity: 0.6;
+        }
+        
+        .register-container {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            width: 100%;
+        }
+        
+        .register-text {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .register-link {
+            color: #ff9500;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 16px;
+            display: inline-block;
+            padding: 8px 16px;
+            border: 2px solid #ff9500;
+            border-radius: 25px;
+            transition: all 0.3s ease;
+        }
+        
+        .register-link:hover {
+            background: #ff9500;
+            color: white;
+        }
+        
+        .toggle-password {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #666;
+        }
+        
+        .copyright {
+            position: absolute;
+            bottom: 15px;
+            left: 30px;
+            font-size: 10px;
+            opacity: 0.7;
+            z-index: 10;
+        }
+        
+        /* ========================================
+           STYLES POP-UPS CENTRAUX
+           ======================================== */
+        #popup-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            z-index: 99999;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            backdrop-filter: blur(5px);
+        }
+        
+        #popup-content {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            max-width: 600px;
+            width: 90%;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+            position: relative;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: popupBounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        
+        @keyframes popupBounceIn {
+            0% {
+                transform: scale(0.5) translateY(-50px);
+                opacity: 0;
+            }
+            70% {
+                transform: scale(1.05);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        
+        #close-popup {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #ff4757;
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 24px;
+            line-height: 1;
+            transition: all 0.3s;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(255, 71, 87, 0.4);
+        }
+        
+        #close-popup:hover {
+            background: #ee5a6f;
+            transform: scale(1.1) rotate(90deg);
+        }
+        
+        #popup-body {
+            text-align: center;
+        }
+        
+        #popup-image {
+            max-width: 100%;
+            max-height: 350px;
+            margin-bottom: 25px;
+            display: none;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        }
+        
+        #popup-title {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        
+        #popup-message {
+            color: #555;
+            line-height: 1.8;
+            white-space: pre-line;
+            margin-bottom: 25px;
+            font-size: 17px;
+        }
+        
+        #countdown {
+            margin-top: 25px;
+            font-size: 15px;
+            color: #888;
+            font-weight: 600;
+            padding: 12px;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 8px;
+        }
+        
+        /* ========================================
+           BANNIÈRES LATÉRALES
+           ======================================== */
+        .side-banner-container {
+            position: fixed;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            max-width: 300px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        
+        .side-banner-container.left { left: 20px; }
+        .side-banner-container.right { right: 20px; }
+        
+        .side-banner {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            animation: slideIn 0.5s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-30px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        .side-banner:hover {
+            transform: scale(1.05);
+            box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+        }
+        
+        .side-banner-image {
+            width: 100%;
+            height: auto;
+            display: block;
+            object-fit: cover;
+            max-height: 200px;
+        }
+        
+        .side-banner-content {
+            padding: 15px;
+        }
+        
+        .side-banner-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #0a1c2e;
+            margin-bottom: 8px;
+        }
+        
+        .side-banner-message {
+            font-size: 13px;
+            color: #555;
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        .side-banner-close {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(255,71,87,0.9);
+            color: white;
+            border: none;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            z-index: 10;
+        }
+        
+        .side-banner-close:hover {
+            background: #ff4757;
+            transform: rotate(90deg) scale(1.1);
+        }
+        
+        .side-banner-priority {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            z-index: 10;
+        }
+        
+        /* Responsive */
+        @media (max-width: 992px) {
+            .side-banner-container {
+                display: none !important;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            #popup-content {
+                width: 95%;
+                padding: 25px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Bannières latérales -->
+    <div class="side-banner-container left" id="left-banners"></div>
+    <div class="side-banner-container right" id="right-banners"></div>
+    
+    <div class="container">
+        <div class="left-panel">
+            <h1 class="welcome-text">BIENVENUE SUR L'UV</h1>
+            <h2 class="headline">La solution complète de gestion universitaire</h2>
+
+            <p class="lorem-text">L'Université Virtuelle est une <span class="highlight-text">plateforme intégrée</span> offrant des espaces dédiés pour les administrateurs, enseignants et étudiants.</p>
+
+            <div class="features-container">
+                <div class="feature-item">
+                    <div class="feature-icon">🔒</div>
+                    <div class="feature-label">Sécurité renforcée</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">📱</div>
+                    <div class="feature-label">Interface intuitive</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">🔄</div>
+                    <div class="feature-label">Disponible 24/7</div>
+                </div>
+            </div>
+
+            <p class="lorem-text">Notre système offre une <span class="highlight-text">gestion optimisée</span> des cours, ressources pédagogiques et suivi des performances.</p>
+
+            <div class="copyright">© 2024 Coding Enterprise - Développé par Orphé MYENE et Filbert KASSA</div>
+
+            <div class="circle"></div>
+            <div class="circle-large"></div>
+        </div>
+
+        <div class="right-panel">
+            <h2 class="connexion-title">Connexion</h2>
+
+            <div class="logo-container">
+                <div class="logo">
+                    <span class="logo-text">UV</span>
+                </div>
+            </div>
+
+            <h3 class="university-name">Université Virtuelle</h3>
+
+            <form action="login1.php" method="post" style="width: 100%;">
+                <div class="input-group">
+                    <span class="icon">👤</span>
+                    <input type="text" class="input-field" id="identifiant" name="identifiant" placeholder="Identifiant" required>
+                </div>
+
+                <div class="input-group" style="position: relative;">
+                    <span class="icon">🔒</span>
+                    <input type="password" class="input-field" id="login_password" name="password" placeholder="Mot de passe" required>
+                    <span class="toggle-password" data-target="login_password">👁️</span>
+                </div>
+
+                <button type="submit" class="login-btn" name="login">Login</button>
+            </form>
+
+            <a href="forgot_password.html" class="forgot-link">Mot de passe oublié</a>
+
+            <div class="register-container">
+                <p class="register-text">Vous n'avez pas de compte ?</p>
+                <a href="register.php" class="register-link">
+                    📝 S'inscrire comme étudiant
+                </a>
+            </div>
+
+            <div class="corner-circle"></div>
+        </div>
+    </div>
+
+    <!-- Pop-up overlay -->
+    <div id="popup-overlay">
+        <div id="popup-content">
+            <button id="close-popup">×</button>
+            
+            <div id="popup-body">
+                <img id="popup-image" src="" alt="Image publicitaire">
+                <h2 id="popup-title"></h2>
+                <p id="popup-message"></p>
+                <div id="countdown"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        console.log('🚀 Page de login chargée - Initialisation des pop-ups...');
+        
+        // ========================================
+        // BANNIÈRES LATÉRALES
+        // ========================================
+        let sideBannersData = [];
+        const closedBanners = new Set();
+        
+        function loadSideBanners() {
+            console.log('📡 Chargement des bannières latérales...');
+            
+            fetch('../includes/get_side_banners.php')
+                .then(response => {
+                    console.log('📥 Réponse bannières:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('✅ Données bannières reçues:', data);
+                    
+                    if (data.success && data.banners && data.banners.length > 0) {
+                        sideBannersData = data.banners;
+                        displaySideBanners();
+                    } else {
+                        console.log('ℹ️ Aucune bannière à afficher');
+                    }
+                })
+                .catch(error => console.error('❌ Erreur chargement bannières:', error));
+        }
+        
+        function displaySideBanners() {
+            const leftContainer = document.getElementById('left-banners');
+            const rightContainer = document.getElementById('right-banners');
+            leftContainer.innerHTML = '';
+            rightContainer.innerHTML = '';
+            
+            console.log(`🎨 Affichage de ${sideBannersData.length} bannières`);
+            
+            sideBannersData.forEach((banner, index) => {
+                if (closedBanners.has(banner.id)) return;
+                const bannerEl = createSideBanner(banner);
+                (index % 2 === 0 ? leftContainer : rightContainer).appendChild(bannerEl);
+            });
+        }
+        
+        function createSideBanner(banner) {
+            const div = document.createElement('div');
+            div.className = 'side-banner';
+            div.dataset.bannerId = banner.id;
+            
+            let html = '';
+            if (banner.priority >= 8) {
+                html += `<div class="side-banner-priority">⭐ ${banner.priority}</div>`;
+            }
+            html += `<button class="side-banner-close" onclick="closeSideBanner(${banner.id}, event)">×</button>`;
+            if (banner.image_url) {
+                html += `<img src="../${banner.image_url}" class="side-banner-image" alt="${banner.title}" onerror="this.style.display='none'">`;
+            }
+            html += `<div class="side-banner-content">
+                <div class="side-banner-title">${banner.title}</div>
+                <div class="side-banner-message">${banner.message}</div>
+            </div>`;
+            
+            div.innerHTML = html;
+            div.addEventListener('click', () => showBannerFullscreen(banner));
+            return div;
+        }
+        
+        function closeSideBanner(bannerId, event) {
+            event.stopPropagation();
+            const banner = document.querySelector(`[data-banner-id="${bannerId}"]`);
+            if (banner) {
+                banner.style.animation = 'fadeOut 0.3s ease-out';
+                setTimeout(() => {
+                    banner.remove();
+                    closedBanners.add(bannerId);
+                }, 300);
+            }
+        }
+        
+        function showBannerFullscreen(banner) {
+            const overlay = document.getElementById('popup-overlay');
+            document.getElementById('popup-title').textContent = banner.title;
+            document.getElementById('popup-message').textContent = banner.message;
+            const img = document.getElementById('popup-image');
+            if (banner.image_url) {
+                img.src = '../' + banner.image_url;
+                img.style.display = 'block';
+            } else {
+                img.style.display = 'none';
+            }
+            document.getElementById('countdown').innerHTML = 'Cliquez pour fermer';
+            overlay.style.display = 'flex';
+            setTimeout(() => overlay.style.opacity = '1', 10);
+            
+            document.getElementById('close-popup').onclick = closeFullscreenPopup;
+            overlay.onclick = (e) => { if (e.target === overlay) closeFullscreenPopup(); };
+        }
+        
+        function closeFullscreenPopup() {
+            const overlay = document.getElementById('popup-overlay');
+            overlay.style.opacity = '0';
+            setTimeout(() => overlay.style.display = 'none', 300);
+        }
+        
+        // ========================================
+        // POP-UPS CENTRAUX
+        // ========================================
+        let isPopupDisplaying = false;
+        
+        function checkForLoginPopup() {
+            if (isPopupDisplaying) {
+                console.log('⏸️ Pop-up déjà en cours d\'affichage');
+                return;
+            }
+            
+            console.log('📡 Vérification des pop-ups centraux...');
+            
+            fetch('../includes/check_popup_login.php')
+                .then(response => {
+                    console.log('📥 Réponse pop-ups:', response.status);
+                    if (!response.ok) {
+                        throw new Error('Erreur réseau: ' + response.status);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('✅ Données pop-ups reçues:', data);
+                    
+                    if (data.show && data.popup) {
+                        isPopupDisplaying = true;
+                        showLoginPopup(data.popup, data.has_more);
+                    } else {
+                        console.log('ℹ️ Aucun pop-up à afficher');
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Erreur lors de la récupération des pop-ups:', error);
+                });
+        }
+        
+        function showLoginPopup(popup, hasMore = false) {
+            console.log('🎉 Affichage du pop-up:', popup);
+            
+            const overlay = document.getElementById('popup-overlay');
+            const title = document.getElementById('popup-title');
+            const message = document.getElementById('popup-message');
+            const image = document.getElementById('popup-image');
+            const closeBtn = document.getElementById('close-popup');
+            const countdown = document.getElementById('countdown');
+            
+            // Remplir le contenu
+            title.textContent = popup.title;
+            message.textContent = popup.message;
+            
+            // Afficher l'image si elle existe
+            if (popup.has_image && popup.image_url) {
+                image.src = '../' + popup.image_url;
+                image.style.display = 'block';
+                image.onerror = function() {
+                    console.error('❌ Erreur chargement image:', popup.image_url);
+                    this.style.display = 'none';
+                };
+            } else {
+                image.style.display = 'none';
+            }
+            
+            // Afficher le pop-up
+            overlay.style.display = 'flex';
+            setTimeout(() => overlay.style.opacity = '1', 10);
+            
+            // Gestion de la fermeture automatique
+            if (popup.auto_close_duration > 0) {
+                let seconds = popup.auto_close_duration;
+                const nextText = hasMore ? ' (puis prochain message)' : '';
+                countdown.innerHTML = `Fermeture automatique dans <strong>${seconds}</strong> secondes${nextText}`;
+                
+                const timer = setInterval(() => {
+                    seconds--;
+                    countdown.innerHTML = `Fermeture automatique dans <strong>${seconds}</strong> secondes${nextText}`;
+                    
+                    if (seconds <= 0) {
+                        clearInterval(timer);
+                        closeLoginPopup(hasMore);
+                    }
+                }, 1000);
+                
+                overlay.addEventListener('mouseenter', () => {
+                    clearInterval(timer);
+                    const closeText = hasMore ? 'Fermez pour voir le prochain message' : 'Cliquez pour fermer';
+                    countdown.innerHTML = closeText;
+                }, { once: true });
+            } else {
+                const closeText = hasMore ? 'Fermez pour voir le prochain message' : 'Cliquez pour fermer';
+                countdown.innerHTML = closeText;
+            }
+            
+            // Gestionnaires de fermeture
+            closeBtn.onclick = (e) => {
+                e.stopPropagation();
+                closeLoginPopup(hasMore);
+            };
+            
+            overlay.onclick = function(e) {
+                if (e.target === overlay) {
+                    closeLoginPopup(hasMore);
+                }
+            };
+            
+            document.addEventListener('keydown', function escHandler(e) {
+                if (e.key === 'Escape') {
+                    closeLoginPopup(hasMore);
+                    document.removeEventListener('keydown', escHandler);
+                }
+            });
+        }
+        
+        function closeLoginPopup(hasMore) {
+            const overlay = document.getElementById('popup-overlay');
+            overlay.style.opacity = '0';
+            setTimeout(() => {
+                overlay.style.display = 'none';
+                isPopupDisplaying = false;
+                
+                if (hasMore) {
+                    console.log('➡️ Chargement du prochain pop-up...');
+                    setTimeout(() => checkForLoginPopup(), 500);
+                }
+            }, 300);
+        }
+        
+        // ========================================
+        // TOGGLE PASSWORD
+        // ========================================
+        document.querySelectorAll('.toggle-password').forEach(function(toggle) {
+            toggle.addEventListener('click', function() {
+                const targetId = this.getAttribute('data-target');
+                const input = document.getElementById(targetId);
+                if (input) {
+                    const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
+                    input.setAttribute('type', type);
+                    this.textContent = type === 'password' ? '👁️' : '🙈';
+                }
+            });
+        });
+        
+        // ========================================
+        // INITIALISATION
+        // ========================================
+        function initLoginPopups() {
+            console.log('🎬 Initialisation complète des pop-ups de login');
+            
+            // Charger les bannières latérales immédiatement
+            loadSideBanners();
+            
+            // Vérifier les pop-ups centraux après 1 seconde
+            setTimeout(() => {
+                console.log('⏰ Vérification des pop-ups centraux (après 1s)');
+                checkForLoginPopup();
+            }, 1000);
+        }
+        
+        // Démarrage
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initLoginPopups);
+        } else {
+            initLoginPopups();
+        }
+    </script>
+</body>
+</html>
