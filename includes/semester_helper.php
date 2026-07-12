@@ -164,6 +164,82 @@ function get_current_period($conn): array
 }
 
 /**
+ * Liste des années académiques connues du système (périodes d'évaluation),
+ * plus l'année courante si elle n'y figure pas encore. Ordre décroissant.
+ *
+ * @return string[]  Ex. ['2025-2026', '2024-2025']
+ */
+function get_school_years($conn): array
+{
+    $years = [];
+    $res = $conn->query(
+        "SELECT DISTINCT school_year FROM evaluation_periods
+         WHERE school_year IS NOT NULL AND school_year <> ''
+         ORDER BY school_year DESC"
+    );
+    if ($res) {
+        while ($row = $res->fetch_assoc()) {
+            $years[] = $row['school_year'];
+        }
+    }
+    if (defined('ANNEE_ACADEMIQUE_COURANTE')
+        && !in_array(ANNEE_ACADEMIQUE_COURANTE, $years, true)) {
+        array_unshift($years, ANNEE_ACADEMIQUE_COURANTE);
+    }
+    return $years;
+}
+
+/**
+ * Id de la période d'évaluation correspondant à un semestre (1/2)
+ * pour une année académique donnée. NULL si aucune période ne correspond.
+ */
+function get_period_id_for($conn, int $semester, string $school_year): ?int
+{
+    $stmt = $conn->prepare(
+        "SELECT id, name FROM evaluation_periods
+         WHERE school_year = ? ORDER BY start_date ASC"
+    );
+    if (!$stmt) {
+        return null;
+    }
+    $stmt->bind_param('s', $school_year);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    while ($row = $res->fetch_assoc()) {
+        if (get_semester_from_period($row['name']) === $semester) {
+            $stmt->close();
+            return (int) $row['id'];
+        }
+    }
+    $stmt->close();
+    return null;
+}
+
+/**
+ * Ids de toutes les périodes d'évaluation d'une année académique.
+ *
+ * @return int[]  Peut être vide si l'année n'a pas encore de périodes.
+ */
+function get_period_ids_for_year($conn, string $school_year): array
+{
+    $ids = [];
+    $stmt = $conn->prepare(
+        "SELECT id FROM evaluation_periods WHERE school_year = ?"
+    );
+    if (!$stmt) {
+        return $ids;
+    }
+    $stmt->bind_param('s', $school_year);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    while ($row = $res->fetch_assoc()) {
+        $ids[] = (int) $row['id'];
+    }
+    $stmt->close();
+    return $ids;
+}
+
+/**
  * Déduit le numéro de semestre depuis le nom d'une période.
  *
  * @param  string $period_name  Ex. "Premier Semestre", "Deuxième Semestre"
@@ -171,6 +247,9 @@ function get_current_period($conn): array
  */
 function get_semester_from_period(string $period_name): int
 {
+    // Ignorer une éventuelle année académique dans le nom ("… 2025-2026") :
+    // sans cela, le « 2 » de l'année ferait classer la période en semestre 2
+    $period_name = preg_replace('/\d{4}\s*-\s*\d{4}/', '', $period_name);
     $lower = mb_strtolower($period_name, 'UTF-8');
     if (str_contains($lower, 'deuxi')
         || str_contains($lower, 'second')

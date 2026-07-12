@@ -14,7 +14,7 @@ $selectedPeriod = isset($_GET['period_id']) ? intval($_GET['period_id']) : null;
 
 // Récupération des classes et périodes
 $classes = $conn->query("SELECT id, name FROM classes ORDER BY name")->fetch_all(MYSQLI_ASSOC);
-$periods = $conn->query("SELECT id, name FROM evaluation_periods ORDER BY start_date DESC")->fetch_all(MYSQLI_ASSOC);
+$periods = $conn->query("SELECT id, name, school_year FROM evaluation_periods ORDER BY school_year DESC, start_date ASC")->fetch_all(MYSQLI_ASSOC);
 
 // Initialisation des statistiques
 $global_stats = [];
@@ -473,9 +473,9 @@ $distribution = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                 <select id="periodSelect" onchange="updateStats(document.getElementById('classSelect').value, this.value)">
                     <option value="">Sélectionner une période</option>
                     <?php foreach ($periods as $period): ?>
-                        <option value="<?php echo $period['id']; ?>" 
+                        <option value="<?php echo $period['id']; ?>"
                                 <?php echo $selectedPeriod == $period['id'] ? 'selected' : ''; ?>>
-                            <?php echo htmlspecialchars($period['name']); ?>
+                            <?php echo htmlspecialchars($period['name']); ?> — <?php echo htmlspecialchars($period['school_year'] ?? ''); ?>
                         </option>
                     <?php endforeach; ?>
                 </select>

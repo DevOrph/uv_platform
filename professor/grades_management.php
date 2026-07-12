@@ -3,6 +3,9 @@ session_start();
 require_once '../includes/db_connect.php';
 require_once '../includes/grade_lock.php';
 require_once '../includes/super_admin.php';
+require_once '../includes/semester_helper.php';
+
+/** @var mysqli $conn Fourni par includes/db_connect.php */
 
 if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'teacher' && $_SESSION['role'] !== 'admin')) {
     header("Location: ../pages/login.php?error=access_denied");
@@ -11,6 +14,17 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'teacher' && $_SESSIO
 
 $user_id = $_SESSION['user_id'];
 $user_role = $_SESSION['role'];
+
+// ── Contexte année académique (sélecteur multi-années) ──────────────────────
+$current_year    = ANNEE_ACADEMIQUE_COURANTE;
+$available_years = get_school_years($conn);
+$selected_year   = (isset($_GET['year'])
+        && preg_match('/^\d{4}-\d{4}$/', $_GET['year'])
+        && in_array($_GET['year'], $available_years, true))
+    ? $_GET['year'] : $current_year;
+$is_archive_year = ($selected_year !== $current_year);
+// Périodes de l'année courante : cible unique de toute écriture de note
+$current_year_period_ids = get_period_ids_for_year($conn, $current_year);
 
 // Fonction pour vérifier les permissions d'examen
 function canAddExamGrade($conn, $user_id) {
@@ -127,16 +141,16 @@ function getStudentsByClass($conn, $class_id) {
 }
 
 // MODIFICATION 1: Fonction pour récupérer les notes avec eval_number
-function getGradesByClass($conn, $class_id, $evaluation_type_id = null) {
+function getGradesByClass($conn, $class_id, $evaluation_type_id = null, $period_ids = null) {
     $grades = [];
-    
+
     try {
         // Vérifier si la colonne eval_number existe
         $check_column = $conn->query("SHOW COLUMNS FROM grades LIKE 'eval_number'");
         $has_eval_number = $check_column->num_rows > 0;
-        
+
         if ($has_eval_number) {
-            $query = "SELECT g.*, u.id as student_id, c.id as course_id, 
+            $query = "SELECT g.*, u.id as student_id, c.id as course_id,
                              COALESCE(g.eval_number, 1) as eval_number
                       FROM grades g
                       JOIN users u ON g.student_id = u.id
@@ -149,14 +163,25 @@ function getGradesByClass($conn, $class_id, $evaluation_type_id = null) {
                       JOIN courses c ON g.course_id = c.id
                       WHERE u.class_id = ?";
         }
-        
+
         $params = [$class_id];
         $types = "i";
-        
+
         if ($evaluation_type_id !== null) {
             $query .= " AND g.evaluation_type_id = ?";
             $params[] = $evaluation_type_id;
             $types .= "i";
+        }
+
+        // Filtre par année académique (liste d'ids de périodes)
+        if (is_array($period_ids)) {
+            if (empty($period_ids)) {
+                // Année sans période : aucune note à afficher
+                $query .= " AND 1 = 0";
+            } else {
+                $in = implode(',', array_map('intval', $period_ids));
+                $query .= " AND g.evaluation_period_id IN ($in)";
+            }
         }
         
         if ($has_eval_number) {
@@ -231,7 +256,17 @@ function getMaxEvaluationsPerCourse($grades, $courses, $students) {
 // Traitement AJAX
 if (isset($_GET['action'])) {
     header('Content-Type: application/json; charset=utf-8');
-    
+
+    // Année archivée = lecture seule : aucune écriture (ajout, modification,
+    // suppression, colonnes) n'est autorisée hors année courante.
+    if ($is_archive_year && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        echo json_encode([
+            'success' => false,
+            'message' => "Année $selected_year archivée : consultation seule. Repassez sur $current_year pour modifier des notes."
+        ]);
+        exit();
+    }
+
     switch ($_GET['action']) {
         case 'get_students':
             if (isset($_GET['class_id'])) {
@@ -258,22 +293,27 @@ if (isset($_GET['action'])) {
             if (isset($_GET['class_id']) && isset($_GET['evaluation_type_id'])) {
                 $class_id = intval($_GET['class_id']);
                 $evaluation_type_id = intval($_GET['evaluation_type_id']);
-                
+
+                // Notes limitées à l'année sélectionnée (courante ou archive)
+                $matrix_period_ids = get_period_ids_for_year($conn, $selected_year);
+
                 $students = getStudentsByClass($conn, $class_id);
                 $courses = getCoursesByClass($conn, $class_id, $user_id, $user_role);
-                $grades = getGradesByClass($conn, $class_id, $evaluation_type_id);
+                $grades = getGradesByClass($conn, $class_id, $evaluation_type_id, $matrix_period_ids);
                 $maxEvals = getMaxEvaluationsPerCourse($grades, $courses, $students);
-                
+
                 // Vérifier si eval_number existe
                 $check_column = $conn->query("SHOW COLUMNS FROM grades LIKE 'eval_number'");
                 $has_eval_number = $check_column->num_rows > 0;
-                
+
                 echo json_encode([
                     'students' => $students,
                     'courses' => $courses,
                     'grades' => $grades,
                     'maxEvaluations' => $maxEvals,
-                    'has_eval_number' => $has_eval_number
+                    'has_eval_number' => $has_eval_number,
+                    'year' => $selected_year,
+                    'is_archive' => $is_archive_year
                 ]);
             } else {
                 echo json_encode(['error' => 'Paramètres manquants']);
@@ -308,7 +348,7 @@ if (isset($_GET['action'])) {
                     $stmt->bind_param("is", $course_id, $user_id);
                     $stmt->execute();
                     $result = $stmt->get_result();
-                    
+
                     if ($result->num_rows === 0) {
                         echo json_encode(['success' => false, 'message' => 'Non autorisé pour ce cours']);
                         exit();
@@ -324,6 +364,12 @@ if (isset($_GET['action'])) {
                     $course = $result->fetch_assoc();
                     $semester = $course['semester'];
                 }
+
+                // Période réelle de l'année courante pour ce semestre
+                // (avant : le n° de semestre servait d'id de période → notes
+                // rattachées à la mauvaise année académique)
+                $target_period_id = get_period_id_for($conn, (int) $semester, $current_year)
+                    ?? (int) $semester;
                 
                 // Vérifier si eval_number existe
                 $check_column = $conn->query("SHOW COLUMNS FROM grades LIKE 'eval_number'");
@@ -349,9 +395,12 @@ if (isset($_GET['action'])) {
                 } else {
                     if ($has_eval_number) {
                         // Vérifier si une note existe déjà pour cet étudiant, cours, type d'évaluation ET numéro d'évaluation
-                        $check_query = "SELECT id FROM grades 
-                                       WHERE student_id = ? AND course_id = ? 
-                                       AND evaluation_type_id = ? AND eval_number = ?";
+                        // — uniquement dans l'année courante, pour ne jamais écraser une note archivée
+                        $year_scope = empty($current_year_period_ids) ? ''
+                            : ' AND evaluation_period_id IN (' . implode(',', $current_year_period_ids) . ')';
+                        $check_query = "SELECT id FROM grades
+                                       WHERE student_id = ? AND course_id = ?
+                                       AND evaluation_type_id = ? AND eval_number = ?" . $year_scope;
                         $check_stmt = $conn->prepare($check_query);
                         $check_stmt->bind_param("siii", $student_id, $course_id, $evaluation_type_id, $eval_number);
                         $check_stmt->execute();
@@ -381,8 +430,8 @@ if (isset($_GET['action'])) {
                                             (student_id, course_id, evaluation_type_id, grade, comment, evaluation_period_id, created_by, eval_number) 
                                             VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
                             $stmt = $conn->prepare($insert_query);
-                            $stmt->bind_param("siidsisi", $student_id, $course_id, $evaluation_type_id, $grade, $comment, $semester, $user_id, $eval_number);
-                            
+                            $stmt->bind_param("siidsisi", $student_id, $course_id, $evaluation_type_id, $grade, $comment, $target_period_id, $user_id, $eval_number);
+
                             if ($stmt->execute()) {
                                 echo json_encode(['success' => true, 'message' => 'Note ajoutée', 'grade_id' => $conn->insert_id]);
                             } else {
@@ -516,9 +565,13 @@ if (isset($_GET['action'])) {
                 $students = getStudentsByClass($conn, $class_id);
                 $max_eval = 0;
                 
+                // Numérotation limitée à l'année courante : les évaluations
+                // repartent de 1 à chaque année académique
+                $year_scope = empty($current_year_period_ids) ? ''
+                    : ' AND evaluation_period_id IN (' . implode(',', $current_year_period_ids) . ')';
                 foreach ($students as $student) {
-                    $query = "SELECT MAX(eval_number) as max_eval FROM grades 
-                             WHERE student_id = ? AND course_id = ? AND evaluation_type_id = ?";
+                    $query = "SELECT MAX(eval_number) as max_eval FROM grades
+                             WHERE student_id = ? AND course_id = ? AND evaluation_type_id = ?" . $year_scope;
                     $stmt = $conn->prepare($query);
                     $stmt->bind_param("sii", $student['id'], $course_id, $evaluation_type_id);
                     $stmt->execute();
@@ -673,16 +726,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_grade'])) {
         $semester = $course['semester'];
     }
 
+    // Période réelle de l'année courante pour ce semestre
+    // (avant : le n° de semestre servait d'id de période → notes
+    // rattachées à la mauvaise année académique)
+    $target_period_id = get_period_id_for($conn, (int) $semester, $current_year)
+        ?? (int) $semester;
+
     if ($evaluation_type == 2) {
+        // Unicité de l'examen limitée à l'année courante : un examen
+        // d'une année archivée ne doit pas bloquer la saisie
+        $year_scope = empty($current_year_period_ids) ? ''
+            : ' AND g.evaluation_period_id IN (' . implode(',', $current_year_period_ids) . ')';
         $check_query = "
-            SELECT g.id 
-            FROM grades g 
-            JOIN courses c ON g.course_id = c.id 
-            WHERE g.student_id = ? 
-            AND g.course_id = ? 
-            AND g.evaluation_type_id = 2 
-            AND c.semester = ?
-        ";
+            SELECT g.id
+            FROM grades g
+            JOIN courses c ON g.course_id = c.id
+            WHERE g.student_id = ?
+            AND g.course_id = ?
+            AND g.evaluation_type_id = 2
+            AND c.semester = ?" . $year_scope;
         $check_stmt = $conn->prepare($check_query);
         $check_stmt->bind_param("sii", $student_id, $course_id, $semester);
         $check_stmt->execute();
@@ -695,9 +757,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_grade'])) {
         }
     }
 
-    // Trouver le prochain numéro d'évaluation
-    $max_query = "SELECT MAX(eval_number) as max_eval FROM grades 
-                  WHERE student_id = ? AND course_id = ? AND evaluation_type_id = ?";
+    // Trouver le prochain numéro d'évaluation (année courante uniquement)
+    $max_query = "SELECT MAX(eval_number) as max_eval FROM grades
+                  WHERE student_id = ? AND course_id = ? AND evaluation_type_id = ?"
+        . (empty($current_year_period_ids) ? ''
+            : ' AND evaluation_period_id IN (' . implode(',', $current_year_period_ids) . ')');
     $max_stmt = $conn->prepare($max_query);
     $max_stmt->bind_param("sii", $student_id, $course_id, $evaluation_type);
     $max_stmt->execute();
@@ -710,7 +774,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_grade'])) {
                     (student_id, course_id, evaluation_type_id, grade, comment, evaluation_period_id, created_by, eval_number) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
     $stmt = $conn->prepare($insert_query);
-    $stmt->bind_param("siidsisi", $student_id, $course_id, $evaluation_type, $grade, $comment, $semester, $user_id, $eval_number);
+    $stmt->bind_param("siidsisi", $student_id, $course_id, $evaluation_type, $grade, $comment, $target_period_id, $user_id, $eval_number);
 
     if ($stmt->execute()) {
         $_SESSION['success_message'] = "Note ajoutée avec succès.";
@@ -2333,6 +2397,18 @@ for ($i = 1; $i <= $total_pages; $i++) {
                         <?php endwhile; ?>
                     </select>
                 </div>
+
+                <div class="form-group">
+                    <label><i class="fas fa-calendar-alt"></i> Année académique</label>
+                    <select id="excelYearSelect" onchange="loadExcelView()">
+                        <?php foreach ($available_years as $yr): ?>
+                            <option value="<?php echo htmlspecialchars($yr); ?>"
+                                    <?php echo $yr === $selected_year ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($yr); ?><?php echo $yr === $current_year ? ' (courante)' : ' (archive)'; ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
             </div>
 
             <div class="excel-table-container" id="excelTableContainer">
@@ -2368,6 +2444,9 @@ for ($i = 1; $i <= $total_pages; $i++) {
 
     <script>
         const canAddExamGrades = <?php echo $can_add_exam_grades ? 'true' : 'false'; ?>;
+        const CURRENT_YEAR = <?php echo json_encode($current_year); ?>;
+        let currentMatrixYear = document.getElementById('excelYearSelect')
+            ? document.getElementById('excelYearSelect').value : CURRENT_YEAR;
         let currentCommentInput = null;
 
         // Basculement entre les vues
@@ -2394,6 +2473,7 @@ for ($i = 1; $i <= $total_pages; $i++) {
         async function loadExcelView() {
             const classId = document.getElementById('excelClassSelect').value;
             const evalTypeId = document.getElementById('excelEvalTypeSelect').value;
+            currentMatrixYear = document.getElementById('excelYearSelect').value || CURRENT_YEAR;
             const container = document.getElementById('excelTableContainer');
 
             if (!classId || !evalTypeId) {
@@ -2421,7 +2501,7 @@ for ($i = 1; $i <= $total_pages; $i++) {
             container.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><h3>Chargement...</h3></div>';
 
             try {
-                const response = await fetch(`?action=get_class_matrix&class_id=${classId}&evaluation_type_id=${evalTypeId}`);
+                const response = await fetch(`?action=get_class_matrix&class_id=${classId}&evaluation_type_id=${evalTypeId}&year=${encodeURIComponent(currentMatrixYear)}`);
                 const data = await response.json();
 
                 if (data.error) {
@@ -2445,6 +2525,8 @@ for ($i = 1; $i <= $total_pages; $i++) {
         function renderExcelTable(data, classId, evalTypeId) {
             const container = document.getElementById('excelTableContainer');
             const { students, courses, grades, maxEvaluations, has_eval_number } = data;
+            const isArchive = !!data.is_archive;
+            const matrixYear = data.year || CURRENT_YEAR;
 
             if (!has_eval_number) {
                 container.innerHTML = `
@@ -2493,14 +2575,19 @@ for ($i = 1; $i <= $total_pages; $i++) {
             let html = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                     <h2 style="margin: 0; color: var(--accent-color);">
-                        <i class="fas fa-table"></i> 
-                        Saisie des notes - ${students.length} étudiants
+                        <i class="fas fa-table"></i>
+                        ${isArchive ? 'Consultation des notes' : 'Saisie des notes'} - ${students.length} étudiants — ${matrixYear}
                     </h2>
                     <button class="modal-btn modal-btn-primary" onclick="loadExcelView()" style="padding: 10px 20px;">
                         <i class="fas fa-sync-alt"></i> Actualiser
                     </button>
                 </div>
-                
+                ${isArchive ? `
+                <div style="margin-bottom: 20px; padding: 12px 18px; border-radius: 8px; background: rgba(241, 196, 15, 0.15); border: 1px solid #f1c40f; color: #f1c40f;">
+                    <i class="fas fa-lock"></i>
+                    Année ${matrixYear} archivée — consultation seule. Repassez sur ${CURRENT_YEAR} pour modifier des notes.
+                </div>` : ''}
+
                 <div class="quick-stats">
                     <div class="stat-item">
                         <div class="stat-value">${students.length}</div>
@@ -2529,15 +2616,16 @@ for ($i = 1; $i <= $total_pages; $i++) {
 
             courses.forEach(course => {
                 const numEvals = maxEvaluations[course.id];
-                html += `<th colspan="${numEvals + 1}" style="background: linear-gradient(135deg, #2c3e50, #34495e); position: relative;">
+                html += `<th colspan="${numEvals + (isArchive ? 0 : 1)}" style="background: linear-gradient(135deg, #2c3e50, #34495e); position: relative;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <span>${course.name}<br><small>(Coef. ${course.coefficient})</small></span>
-                                <button onclick="addEvaluationColumn(${course.id}, ${evalTypeId}, ${classId})" 
-                                        class="btn-add-eval" 
+                                ${isArchive ? '' : `
+                                <button onclick="addEvaluationColumn(${course.id}, ${evalTypeId}, ${classId})"
+                                        class="btn-add-eval"
                                         title="Créer une nouvelle colonne d'évaluation"
                                         style="margin-left: 10px; padding: 5px 10px; background: rgba(46, 204, 113, 0.3); border: 1px solid #2ecc71; color: #2ecc71; border-radius: 5px; cursor: pointer; font-size: 11px; font-weight: 600; transition: all 0.3s ease;">
                                     <i class="fas fa-plus"></i> Nouvelle
-                                </button>
+                                </button>`}
                             </div>
                         </th>`;
             });
@@ -2553,22 +2641,25 @@ for ($i = 1; $i <= $total_pages; $i++) {
                         <th style="min-width: 120px; background: linear-gradient(135deg, var(--accent-color), #0277bd); position: relative;">
                             <div style="display: flex; align-items: center; justify-content: center; gap: 5px;">
                                 <span>Éval ${evalNum}</span>
-                                <button onclick="deleteEvaluationColumn(${course.id}, ${evalTypeId}, ${classId}, ${evalNum})" 
-                                        class="btn-delete-column" 
+                                ${isArchive ? '' : `
+                                <button onclick="deleteEvaluationColumn(${course.id}, ${evalTypeId}, ${classId}, ${evalNum})"
+                                        class="btn-delete-column"
                                         title="Supprimer cette colonne">
                                     <i class="fas fa-trash"></i>
-                                </button>
+                                </button>`}
                             </div>
                         </th>
                     `;
                 }
                 
-                // Colonne "Nouvelle" toujours présente
-                html += `
-                    <th style="min-width: 120px; background: linear-gradient(135deg, rgba(46, 204, 113, 0.3), rgba(39, 174, 96, 0.3)); border: 2px dashed #2ecc71;">
-                        <span style="color: #2ecc71; font-size: 12px; font-weight: 600;">Nouvelle Éval ${numEvals + 1}</span>
-                    </th>
-                `;
+                // Colonne "Nouvelle" (masquée en consultation d'archive)
+                if (!isArchive) {
+                    html += `
+                        <th style="min-width: 120px; background: linear-gradient(135deg, rgba(46, 204, 113, 0.3), rgba(39, 174, 96, 0.3)); border: 2px dashed #2ecc71;">
+                            <span style="color: #2ecc71; font-size: 12px; font-weight: 600;">Nouvelle Éval ${numEvals + 1}</span>
+                        </th>
+                    `;
+                }
             });
 
             html += `</tr></thead><tbody>`;
@@ -2593,10 +2684,10 @@ for ($i = 1; $i <= $total_pages; $i++) {
                         html += `
                             <td>
                                 <div class="grade-cell">
-                                    <input type="number" 
-                                           class="grade-input ${hasValue}" 
-                                           min="0" 
-                                           max="20" 
+                                    <input type="number"
+                                           class="grade-input ${hasValue}"
+                                           min="0"
+                                           max="20"
                                            step="0.25"
                                            value="${value}"
                                            data-student-id="${student.id}"
@@ -2604,11 +2695,10 @@ for ($i = 1; $i <= $total_pages; $i++) {
                                            data-eval-type-id="${evalTypeId}"
                                            data-eval-number="${evalNum}"
                                            data-grade-id="${gradeId}"
-                                           onchange="saveGrade(this)"
-                                           onblur="saveGrade(this)"
+                                           ${isArchive ? 'disabled' : `onchange="saveGrade(this)" onblur="saveGrade(this)"`}
                                            placeholder="--">
-                                    <button class="comment-btn ${hasComment}" 
-                                            onclick="openCommentModal(this, '${comment.replace(/'/g, "&apos;")}')" 
+                                    <button class="comment-btn ${hasComment}"
+                                            onclick="openCommentModal(this, '${comment.replace(/'/g, "&apos;")}')"
                                             title="${comment || 'Ajouter un commentaire'}"
                                             data-grade-id="${gradeId}">
                                         <i class="fas fa-comment"></i>
@@ -2619,35 +2709,37 @@ for ($i = 1; $i <= $total_pages; $i++) {
                         `;
                     }
                     
-                    // Colonne "Nouvelle" avec eval_number = numEvals + 1
-                    html += `
-                        <td style="background: rgba(46, 204, 113, 0.05);">
-                            <div class="grade-cell">
-                                <input type="number" 
-                                       class="grade-input new-column" 
-                                       min="0" 
-                                       max="20" 
-                                       step="0.25"
-                                       value=""
-                                       data-student-id="${student.id}"
-                                       data-course-id="${course.id}"
-                                       data-eval-type-id="${evalTypeId}"
-                                       data-eval-number="${numEvals + 1}"
-                                       data-grade-id=""
-                                       onchange="saveGrade(this)"
-                                       onblur="saveGrade(this)"
-                                       placeholder="--"
-                                       title="Nouvelle évaluation ${numEvals + 1}">
-                                <button class="comment-btn" 
-                                        onclick="openCommentModal(this, '')" 
-                                        title="Ajouter un commentaire"
-                                        data-grade-id="">
-                                    <i class="fas fa-comment"></i>
-                                </button>
-                                <span class="save-indicator"></span>
-                            </div>
-                        </td>
-                    `;
+                    // Colonne "Nouvelle" avec eval_number = numEvals + 1 (masquée en archive)
+                    if (!isArchive) {
+                        html += `
+                            <td style="background: rgba(46, 204, 113, 0.05);">
+                                <div class="grade-cell">
+                                    <input type="number"
+                                           class="grade-input new-column"
+                                           min="0"
+                                           max="20"
+                                           step="0.25"
+                                           value=""
+                                           data-student-id="${student.id}"
+                                           data-course-id="${course.id}"
+                                           data-eval-type-id="${evalTypeId}"
+                                           data-eval-number="${numEvals + 1}"
+                                           data-grade-id=""
+                                           onchange="saveGrade(this)"
+                                           onblur="saveGrade(this)"
+                                           placeholder="--"
+                                           title="Nouvelle évaluation ${numEvals + 1}">
+                                    <button class="comment-btn"
+                                            onclick="openCommentModal(this, '')"
+                                            title="Ajouter un commentaire"
+                                            data-grade-id="">
+                                        <i class="fas fa-comment"></i>
+                                    </button>
+                                    <span class="save-indicator"></span>
+                                </div>
+                            </td>
+                        `;
+                    }
                 });
                 
                 html += `</tr>`;
@@ -2687,7 +2779,7 @@ for ($i = 1; $i <= $total_pages; $i++) {
                 formData.append('class_id', classId);
                 formData.append('eval_number', evalNumber);
 
-                const response = await fetch('?action=delete_evaluation_column', {
+                const response = await fetch('?action=delete_evaluation_column&year=' + encodeURIComponent(currentMatrixYear), {
                     method: 'POST',
                     body: formData
                 });
@@ -2714,7 +2806,7 @@ for ($i = 1; $i <= $total_pages; $i++) {
                 formData.append('evaluation_type_id', evalTypeId);
                 formData.append('class_id', classId);
 
-                const response = await fetch('?action=add_evaluation_column', {
+                const response = await fetch('?action=add_evaluation_column&year=' + encodeURIComponent(currentMatrixYear), {
                     method: 'POST',
                     body: formData
                 });
@@ -2767,7 +2859,7 @@ for ($i = 1; $i <= $total_pages; $i++) {
                     formData.append('grade_id', gradeId);
                     formData.append('comment', comment);
 
-                    const response = await fetch('?action=update_comment', {
+                    const response = await fetch('?action=update_comment&year=' + encodeURIComponent(currentMatrixYear), {
                         method: 'POST',
                         body: formData
                     });
@@ -2839,7 +2931,7 @@ for ($i = 1; $i <= $total_pages; $i++) {
             formData.append('comment', pendingComment);
 
             try {
-                const response = await fetch('?action=save_grade', {
+                const response = await fetch('?action=save_grade&year=' + encodeURIComponent(currentMatrixYear), {
                     method: 'POST',
                     body: formData
                 });
@@ -2961,7 +3053,7 @@ for ($i = 1; $i <= $total_pages; $i++) {
                 const formData = new FormData();
                 formData.append('grade_id', id);
 
-                const response = await fetch('?action=delete_grade', {
+                const response = await fetch('?action=delete_grade&year=' + encodeURIComponent(currentMatrixYear), {
                     method: 'POST',
                     body: formData
                 });

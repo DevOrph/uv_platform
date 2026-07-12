@@ -3,6 +3,9 @@ session_start();
 require_once '../includes/db_connect.php';
 require_once '../includes/grade_lock.php';
 require_once '../includes/super_admin.php';
+require_once '../includes/semester_helper.php';
+
+/** @var mysqli $conn Fourni par includes/db_connect.php */
 
 // Vérification des droits d'accès
 if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'teacher' && $_SESSION['role'] !== 'admin')) {
@@ -12,6 +15,10 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'teacher' && $_SESSIO
 
 $user_id = $_SESSION['user_id'];
 $user_role = $_SESSION['role'];
+
+// ── Contexte année académique ────────────────────────────────────────────────
+$current_year    = ANNEE_ACADEMIQUE_COURANTE;
+$available_years = get_school_years($conn);
 
 // Fonction pour vérifier les permissions d'examen
 function canAddExamGrade($conn, $user_id, $user_role) {
@@ -130,13 +137,19 @@ function getStudentsByClass($conn, $class_id) {
     return $students;
 }
 
-// Fonction pour récupérer les notes récentes
-function getRecentGrades($conn, $class_id, $limit = 10) {
+// Fonction pour récupérer les notes récentes (optionnellement filtrées par année)
+function getRecentGrades($conn, $class_id, $limit = 10, $school_year = null) {
     $grades = [];
-    
+
     try {
+        $year_join  = '';
+        $year_where = '';
+        if ($school_year !== null && $school_year !== '') {
+            $year_join  = " JOIN evaluation_periods ep ON g.evaluation_period_id = ep.id";
+            $year_where = " AND ep.school_year = ?";
+        }
         $query = "
-            SELECT 
+            SELECT
                 g.id,
                 u.name AS student_name,
                 c.name AS course_name,
@@ -148,12 +161,18 @@ function getRecentGrades($conn, $class_id, $limit = 10) {
             JOIN users u ON g.student_id = u.id
             JOIN courses c ON g.course_id = c.id
             JOIN evaluation_types et ON g.evaluation_type_id = et.id
+            $year_join
             WHERE u.class_id = ?
+            $year_where
             ORDER BY g.created_at DESC
             LIMIT ?";
-        
+
         $stmt = $conn->prepare($query);
-        $stmt->bind_param("ii", $class_id, $limit);
+        if ($year_where !== '') {
+            $stmt->bind_param("isi", $class_id, $school_year, $limit);
+        } else {
+            $stmt->bind_param("ii", $class_id, $limit);
+        }
         $stmt->execute();
         $result = $stmt->get_result();
         
@@ -196,7 +215,9 @@ if (isset($_GET['action'])) {
             if (isset($_GET['class_id'])) {
                 $class_id = intval($_GET['class_id']);
                 $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 10;
-                $grades = getRecentGrades($conn, $class_id, $limit);
+                $year = (isset($_GET['year']) && preg_match('/^\d{4}-\d{4}$/', $_GET['year']))
+                    ? $_GET['year'] : null;
+                $grades = getRecentGrades($conn, $class_id, $limit, $year);
                 echo json_encode($grades);
             } else {
                 echo json_encode(['error' => 'Class ID manquant']);
@@ -247,8 +268,14 @@ $classes_result = $conn->query($classes_query);
 $evaluation_types_query = "SELECT id, name FROM evaluation_types ORDER BY name";
 $evaluation_types_result = $conn->query($evaluation_types_query);
 
-$periods_query = "SELECT id, name FROM evaluation_periods ORDER BY start_date DESC";
+// Périodes groupées par année académique (année la plus récente d'abord)
+$periods_query = "SELECT id, name, school_year FROM evaluation_periods
+                  ORDER BY school_year DESC, start_date ASC";
 $periods_result = $conn->query($periods_query);
+$periods_by_year = [];
+while ($p = $periods_result->fetch_assoc()) {
+    $periods_by_year[$p['school_year'] ?: 'Sans année'][] = $p;
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_grade'])) {
     $student_id = $_POST['student_id'];
@@ -1495,11 +1522,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_grade'])) {
                         </label>
                         <select id="period" name="evaluation_period_id" required>
                             <option value="">Sélectionner une période</option>
-                            <?php while ($period = $periods_result->fetch_assoc()): ?>
-                                <option value="<?php echo $period['id']; ?>">
-                                    <?php echo htmlspecialchars($period['name']); ?>
-                                </option>
-                            <?php endwhile; ?>
+                            <?php foreach ($periods_by_year as $py_year => $py_periods): ?>
+                                <optgroup label="<?php echo htmlspecialchars($py_year); ?><?php echo $py_year === $current_year ? ' (courante)' : ''; ?>">
+                                    <?php foreach ($py_periods as $period): ?>
+                                        <option value="<?php echo $period['id']; ?>">
+                                            <?php echo htmlspecialchars($period['name']); ?> — <?php echo htmlspecialchars($py_year); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </optgroup>
+                            <?php endforeach; ?>
                         </select>
                     </div>
 
@@ -1534,7 +1565,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_grade'])) {
 
         <!-- Tableau des notes récentes -->
         <div class="grades-table-container">
-            <h2><i class="fas fa-history"></i> Notes Récentes</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap;">
+                <h2 style="margin: 0;"><i class="fas fa-history"></i> Notes Récentes</h2>
+                <select id="recentYearSelect" onchange="reloadRecentGrades()" title="Filtrer par année académique">
+                    <option value="">Toutes les années</option>
+                    <?php foreach ($available_years as $yr): ?>
+                        <option value="<?php echo htmlspecialchars($yr); ?>"
+                                <?php echo $yr === $current_year ? 'selected' : ''; ?>>
+                            <?php echo htmlspecialchars($yr); ?><?php echo $yr === $current_year ? ' (courante)' : ''; ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
             <div id="recentGradesTable" class="loading">
                 <p>Sélectionnez une classe pour voir les notes récentes</p>
             </div>
@@ -1741,12 +1783,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_grade'])) {
             preview.textContent = `${numValue.toFixed(2)}/20`;
         }
 
+        function reloadRecentGrades() {
+            const classSel = document.getElementById('class');
+            if (classSel && classSel.value) loadRecentGrades(classSel.value);
+        }
+
         async function loadRecentGrades(classId) {
             const container = document.getElementById('recentGradesTable');
             container.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Chargement des notes...</div>';
 
+            const yearSel = document.getElementById('recentYearSelect');
+            const yearParam = yearSel && yearSel.value ? `&year=${encodeURIComponent(yearSel.value)}` : '';
+
             try {
-                const response = await fetch(`?action=get_recent_grades&class_id=${classId}&limit=10`);
+                const response = await fetch(`?action=get_recent_grades&class_id=${classId}&limit=10${yearParam}`);
                 const grades = await response.json();
                 
                 if (grades.error) {

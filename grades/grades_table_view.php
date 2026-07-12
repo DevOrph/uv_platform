@@ -3,6 +3,9 @@ session_start();
 require_once '../includes/db_connect.php';
 require_once '../includes/grade_lock.php';
 require_once '../includes/super_admin.php';
+require_once '../includes/semester_helper.php';
+
+/** @var mysqli $conn Fourni par includes/db_connect.php */
 
 if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'teacher' && $_SESSION['role'] !== 'admin')) {
     header("Location: ../pages/login.php?error=access_denied");
@@ -11,6 +14,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'teacher' && $_SESSIO
 
 $user_id = $_SESSION['user_id'];
 $user_role = $_SESSION['role'];
+$current_year = ANNEE_ACADEMIQUE_COURANTE;
 
 // Fonction pour vérifier les permissions d'examen
 function canAddExamGrade($conn, $user_id) {
@@ -287,11 +291,16 @@ if (isset($_GET['action'])) {
                         echo json_encode(['success' => false, 'message' => 'Erreur mise à jour']);
                     }
                 } else {
-                    $insert_query = "INSERT INTO grades 
-                                    (student_id, course_id, evaluation_type_id, grade, comment, evaluation_period_id, created_by) 
+                    // Période réelle de l'année courante pour ce semestre
+                    // (avant : le n° de semestre servait d'id de période → notes
+                    // rattachées à la mauvaise année académique)
+                    $target_period_id = get_period_id_for($conn, (int) $semester, $current_year)
+                        ?? (int) $semester;
+                    $insert_query = "INSERT INTO grades
+                                    (student_id, course_id, evaluation_type_id, grade, comment, evaluation_period_id, created_by)
                                     VALUES (?, ?, ?, ?, ?, ?, ?)";
                     $stmt = $conn->prepare($insert_query);
-                    $stmt->bind_param("siidsis", $student_id, $course_id, $evaluation_type_id, $grade, $comment, $semester, $user_id);
+                    $stmt->bind_param("siidsis", $student_id, $course_id, $evaluation_type_id, $grade, $comment, $target_period_id, $user_id);
                     
                     if ($stmt->execute()) {
                         echo json_encode(['success' => true, 'message' => 'Note ajoutée', 'grade_id' => $conn->insert_id]);
