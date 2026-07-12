@@ -16,6 +16,14 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'teacher' && $_SESSIO
 $user_id = $_SESSION['user_id'];
 $user_role = $_SESSION['role'];
 
+// La gestion des notes se fait désormais uniquement dans la vue tableau :
+// toute ouverture directe de cette page bascule vers grades_table_view.php.
+// Les traitements POST/AJAX existants restent fonctionnels ci-dessous.
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && !isset($_GET['action'])) {
+    header('Location: grades_table_view.php');
+    exit();
+}
+
 // ── Contexte année académique ────────────────────────────────────────────────
 $current_year    = ANNEE_ACADEMIQUE_COURANTE;
 $available_years = get_school_years($conn);

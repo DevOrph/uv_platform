@@ -1077,17 +1077,6 @@ $eval_types_result = $conn->query($eval_types_query);
             <p>Saisie et modification rapide de toutes les évaluations par classe</p>
         </div>
 
-        <!-- Basculement entre les vues -->
-        <div class="view-switcher">
-            <span><i class="fas fa-eye"></i> Mode d'affichage :</span>
-            <a href="grades_management.php" class="btn-view">
-                <i class="fas fa-wpforms"></i> Vue Formulaire
-            </a>
-            <a href="grades_table_view.php" class="btn-view active">
-                <i class="fas fa-table"></i> Vue Tableau
-            </a>
-        </div>
-
         <?php if (!$can_add_exam_grades): ?>
             <div class="alert info">
                 <i class="fas fa-info-circle"></i>
@@ -1148,16 +1137,12 @@ $eval_types_result = $conn->query($eval_types_query);
                 </div>
             </div>
 
-            <button class="btn-load" onclick="loadGradesTable()" id="btnLoad" disabled>
-                <i class="fas fa-table"></i>
-                Charger le tableau des notes
-            </button>
         </div>
 
         <div class="excel-table-container" id="tableContainer" style="display: none;">
             <div class="loading">
                 <i class="fas fa-spinner fa-pulse"></i>
-                <p>Sélectionnez les filtres ci-dessus et cliquez sur "Charger le tableau"</p>
+                <p>Sélectionnez une classe et un type d'évaluation : le tableau se charge automatiquement</p>
             </div>
         </div>
     </div>
@@ -1221,20 +1206,20 @@ $eval_types_result = $conn->query($eval_types_query);
                 yearSel.value = ctx.year;
             }
 
+            // Déclenche le chargement automatique si classe + type sont restaurés
             checkLoadButton();
-            if (classSel.value && typeSel.value) {
-                loadGradesTable();
-            }
         }
 
         document.addEventListener('DOMContentLoaded', restoreWorkContext);
 
+        // Chargement automatique dès que classe + type sont sélectionnés
         function checkLoadButton() {
             const classId = document.getElementById('class').value;
             const evalTypeId = document.getElementById('evalType').value;
-            const btnLoad = document.getElementById('btnLoad');
-            
-            btnLoad.disabled = !(classId && evalTypeId);
+
+            if (classId && evalTypeId) {
+                loadGradesTable();
+            }
         }
 
         async function loadGradesTable() {
