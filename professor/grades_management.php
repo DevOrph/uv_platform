@@ -2164,20 +2164,8 @@ for ($i = 1; $i <= $total_pages; $i++) {
             </div>
         </div>
 
-        <!-- Boutons de basculement de vue -->
-        <div class="view-switcher">
-            <button class="view-btn active" onclick="switchView('traditional')" id="traditionalBtn">
-                <i class="fas fa-list"></i>
-                Vue Traditionnelle
-            </button>
-            <button class="view-btn" onclick="switchView('excel')" id="excelBtn">
-                <i class="fas fa-table"></i>
-                Vue Tableau (Saisie Rapide)
-            </button>
-        </div>
-
-        <!-- Vue Traditionnelle -->
-        <div class="traditional-view" id="traditionalView">
+        <!-- Vue Traditionnelle (désactivée : la vue tableau est la seule utilisée) -->
+        <div class="traditional-view" id="traditionalView" style="display: none;">
             <div class="sidebar">
                 <h2><i class="fas fa-plus-circle"></i> Ajouter une note</h2>
                 <form method="post" class="grade-form" id="gradeForm">
@@ -2366,8 +2354,8 @@ for ($i = 1; $i <= $total_pages; $i++) {
             </div>
         </div>
 
-        <!-- Vue Tableau Excel -->
-        <div class="excel-view" id="excelView">
+        <!-- Vue Tableau Excel (vue unique) -->
+        <div class="excel-view active" id="excelView">
             <div class="excel-controls">
                 <div class="form-group">
                     <label><i class="fas fa-users"></i> Classe</label>
@@ -2449,25 +2437,44 @@ for ($i = 1; $i <= $total_pages; $i++) {
             ? document.getElementById('excelYearSelect').value : CURRENT_YEAR;
         let currentCommentInput = null;
 
-        // Basculement entre les vues
-        function switchView(view) {
-            const traditionalView = document.getElementById('traditionalView');
-            const excelView = document.getElementById('excelView');
-            const traditionalBtn = document.getElementById('traditionalBtn');
-            const excelBtn = document.getElementById('excelBtn');
+        // ── Mémorisation du dernier contexte de travail (classe / type / année) ──
+        const GM_STORE_KEY = 'uv_gm_last_context';
 
-            if (view === 'traditional') {
-                traditionalView.style.display = 'grid';
-                excelView.classList.remove('active');
-                traditionalBtn.classList.add('active');
-                excelBtn.classList.remove('active');
-            } else {
-                traditionalView.style.display = 'none';
-                excelView.classList.add('active');
-                traditionalBtn.classList.remove('active');
-                excelBtn.classList.add('active');
+        function saveWorkContext(classId, evalTypeId, year) {
+            try {
+                localStorage.setItem(GM_STORE_KEY, JSON.stringify({ classId, evalTypeId, year }));
+            } catch (e) { /* stockage indisponible : tant pis */ }
+        }
+
+        function restoreWorkContext() {
+            let ctx = null;
+            try {
+                ctx = JSON.parse(localStorage.getItem(GM_STORE_KEY) || 'null');
+            } catch (e) { return; }
+            if (!ctx) return;
+
+            const classSel = document.getElementById('excelClassSelect');
+            const typeSel  = document.getElementById('excelEvalTypeSelect');
+            const yearSel  = document.getElementById('excelYearSelect');
+
+            // Ne restaurer que des options encore existantes (classe supprimée, etc.)
+            if (ctx.classId && classSel.querySelector(`option[value="${ctx.classId}"]`)) {
+                classSel.value = ctx.classId;
+            }
+            if (ctx.evalTypeId) {
+                const opt = typeSel.querySelector(`option[value="${ctx.evalTypeId}"]`);
+                if (opt && !opt.disabled) typeSel.value = ctx.evalTypeId;
+            }
+            if (ctx.year && yearSel.querySelector(`option[value="${ctx.year}"]`)) {
+                yearSel.value = ctx.year;
+            }
+
+            if (classSel.value && typeSel.value) {
+                loadExcelView();
             }
         }
+
+        document.addEventListener('DOMContentLoaded', restoreWorkContext);
 
         // Charger la vue Excel
         async function loadExcelView() {
@@ -2475,6 +2482,10 @@ for ($i = 1; $i <= $total_pages; $i++) {
             const evalTypeId = document.getElementById('excelEvalTypeSelect').value;
             currentMatrixYear = document.getElementById('excelYearSelect').value || CURRENT_YEAR;
             const container = document.getElementById('excelTableContainer');
+
+            if (classId && evalTypeId) {
+                saveWorkContext(classId, evalTypeId, currentMatrixYear);
+            }
 
             if (!classId || !evalTypeId) {
                 container.innerHTML = `
