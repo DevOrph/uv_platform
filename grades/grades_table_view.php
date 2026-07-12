@@ -1069,7 +1069,7 @@ $eval_types_result = $conn->query($eval_types_query);
     </style>
 </head>
 <body>
-    <?php include '../includes/header_discussion.php'; ?>
+    <?php include $_SESSION['role'] === 'admin' ? '../includes/header_admin.php' : '../includes/header_discussion.php'; ?>
 
     <div class="container">
         <div class="page-header">
@@ -1144,6 +1144,12 @@ $eval_types_result = $conn->query($eval_types_query);
                 <i class="fas fa-spinner fa-pulse"></i>
                 <p>Sélectionnez une classe et un type d'évaluation : le tableau se charge automatiquement</p>
             </div>
+        </div>
+
+        <!-- Historique : dernières notes saisies pour la classe -->
+        <div class="filters-section" id="recentGradesSection" style="display: none; margin-top: 25px;">
+            <h3><i class="fas fa-history"></i> Notes récentes</h3>
+            <div id="recentGradesTable"></div>
         </div>
     </div>
 
@@ -1255,6 +1261,7 @@ $eval_types_result = $conn->query($eval_types_query);
                 }
 
                 renderExcelTable(data, classId, evalTypeId);
+                loadRecentGrades(classId);
             } catch (error) {
                 console.error('Erreur:', error);
                 container.innerHTML = `
@@ -1474,6 +1481,94 @@ $eval_types_result = $conn->query($eval_types_query);
                         </ul>
                     </div>`;
             container.innerHTML = html;
+        }
+
+        // ── Historique : dernières notes saisies pour la classe ──
+        async function loadRecentGrades(classId) {
+            const section = document.getElementById('recentGradesSection');
+            const container = document.getElementById('recentGradesTable');
+            if (!classId) {
+                section.style.display = 'none';
+                return;
+            }
+
+            section.style.display = 'block';
+            container.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-pulse"></i><p>Chargement…</p></div>';
+
+            try {
+                const response = await fetch(`grades_management.php?action=get_recent_grades&class_id=${classId}&limit=10&year=${encodeURIComponent(currentMatrixYear)}`);
+                const grades = await response.json();
+
+                if (grades.error) {
+                    container.innerHTML = `<p style="color: #e74c3c;">Erreur : ${grades.error}</p>`;
+                    return;
+                }
+                if (!grades.length) {
+                    container.innerHTML = `<p style="color: rgba(255,255,255,0.6); margin: 10px 0;">Aucune note récente pour cette classe sur ${currentMatrixYear}.</p>`;
+                    return;
+                }
+
+                const isArchive = currentMatrixYear !== CURRENT_YEAR;
+                let html = `<div style="overflow-x: auto;"><table class="excel-table" style="margin-top: 10px;">
+                    <thead><tr>
+                        <th>Étudiant</th><th>Cours</th><th>Type</th><th>Note</th><th>Date</th>${isArchive ? '' : '<th>Actions</th>'}
+                    </tr></thead><tbody>`;
+                grades.forEach(g => {
+                    html += `<tr>
+                        <td>${g.student_name}</td>
+                        <td>${g.course_name}</td>
+                        <td>${g.evaluation_type}</td>
+                        <td style="font-weight: 600; color: ${gradeColor(g.grade)};">${g.grade}/20</td>
+                        <td>${new Date(g.created_at).toLocaleDateString('fr-FR')}</td>
+                        ${isArchive ? '' : `<td>
+                            <button onclick="deleteGrade(${g.id})" title="Supprimer"
+                                    style="background: rgba(231, 76, 60, 0.15); border: 1px solid #e74c3c; color: #e74c3c; border-radius: 5px; padding: 5px 10px; cursor: pointer;">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>`}
+                    </tr>`;
+                });
+                html += '</tbody></table></div>';
+                container.innerHTML = html;
+            } catch (error) {
+                console.error('Erreur:', error);
+                container.innerHTML = '<p style="color: #e74c3c;">Erreur lors du chargement des notes récentes</p>';
+            }
+        }
+
+        function gradeColor(value) {
+            const v = parseFloat(value);
+            if (v >= 16) return '#2ecc71';
+            if (v >= 14) return '#3498db';
+            if (v >= 10) return '#f1c40f';
+            return '#e74c3c';
+        }
+
+        async function deleteGrade(gradeId) {
+            if (!confirm('Êtes-vous sûr de vouloir supprimer cette note ?')) {
+                return;
+            }
+
+            try {
+                const formData = new FormData();
+                formData.append('grade_id', gradeId);
+
+                const response = await fetch('grades_management.php?action=delete_grade', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    // Recharger la matrice et l'historique
+                    loadGradesTable();
+                } else {
+                    alert('Erreur : ' + data.message);
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert('Erreur lors de la suppression');
+            }
         }
 
         async function addEvaluationColumn(courseId, evalTypeId, classId) {
