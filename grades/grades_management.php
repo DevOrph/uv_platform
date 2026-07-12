@@ -1698,10 +1698,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_grade'])) {
             });
         });
 
+        // ── Mémorisation de la dernière classe travaillée ──
+        const GM_LAST_CLASS_KEY = 'uv_admin_grades_form_last_class';
+
+        function restoreLastClass() {
+            let lastClass = null;
+            try {
+                lastClass = localStorage.getItem(GM_LAST_CLASS_KEY);
+            } catch (e) { return; }
+            if (!lastClass) return;
+
+            const classSel = document.getElementById('class');
+            if (classSel && classSel.querySelector(`option[value="${lastClass}"]`)) {
+                classSel.value = lastClass;
+                loadStudentsAndCourses(lastClass);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', restoreLastClass);
+
         async function loadStudentsAndCourses(classId) {
             const studentSelect = document.getElementById('student');
             const courseSelect = document.getElementById('course');
-            
+
+            try {
+                if (classId) localStorage.setItem(GM_LAST_CLASS_KEY, classId);
+            } catch (e) { /* stockage indisponible : tant pis */ }
+
             if (!classId) {
                 studentSelect.disabled = true;
                 courseSelect.disabled = true;

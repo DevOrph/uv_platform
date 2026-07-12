@@ -14,7 +14,17 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'teacher' && $_SESSIO
 
 $user_id = $_SESSION['user_id'];
 $user_role = $_SESSION['role'];
-$current_year = ANNEE_ACADEMIQUE_COURANTE;
+
+// ── Contexte année académique (sélecteur multi-années) ──────────────────────
+$current_year    = ANNEE_ACADEMIQUE_COURANTE;
+$available_years = get_school_years($conn);
+$selected_year   = (isset($_GET['year'])
+        && preg_match('/^\d{4}-\d{4}$/', $_GET['year'])
+        && in_array($_GET['year'], $available_years, true))
+    ? $_GET['year'] : $current_year;
+$is_archive_year = ($selected_year !== $current_year);
+// Périodes de l'année courante : cible unique de toute écriture de note
+$current_year_period_ids = get_period_ids_for_year($conn, $current_year);
 
 // Fonction pour vérifier les permissions d'examen
 function canAddExamGrade($conn, $user_id) {
@@ -131,25 +141,36 @@ function getStudentsByClass($conn, $class_id) {
 }
 
 // Fonction pour récupérer TOUTES les notes d'une classe avec type d'évaluation
-function getGradesByClass($conn, $class_id, $evaluation_type_id = null) {
+function getGradesByClass($conn, $class_id, $evaluation_type_id = null, $period_ids = null) {
     $grades = [];
-    
+
     try {
         $query = "SELECT g.*, u.id as student_id, c.id as course_id
                   FROM grades g
                   JOIN users u ON g.student_id = u.id
                   JOIN courses c ON g.course_id = c.id
                   WHERE u.class_id = ?";
-        
+
         $params = [$class_id];
         $types = "i";
-        
+
         if ($evaluation_type_id !== null) {
             $query .= " AND g.evaluation_type_id = ?";
             $params[] = $evaluation_type_id;
             $types .= "i";
         }
-        
+
+        // Filtre par année académique (liste d'ids de périodes)
+        if (is_array($period_ids)) {
+            if (empty($period_ids)) {
+                // Année sans période : aucune note à afficher
+                $query .= " AND 1 = 0";
+            } else {
+                $in = implode(',', array_map('intval', $period_ids));
+                $query .= " AND g.evaluation_period_id IN ($in)";
+            }
+        }
+
         $query .= " ORDER BY g.created_at ASC";
         
         $stmt = $conn->prepare($query);
@@ -198,7 +219,16 @@ function getMaxEvaluationsPerCourse($grades, $courses, $students) {
 // Traitement AJAX
 if (isset($_GET['action'])) {
     header('Content-Type: application/json; charset=utf-8');
-    
+
+    // Année archivée = lecture seule : aucune écriture hors année courante
+    if ($is_archive_year && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        echo json_encode([
+            'success' => false,
+            'message' => "Année $selected_year archivée : consultation seule. Repassez sur $current_year pour modifier des notes."
+        ]);
+        exit();
+    }
+
     switch ($_GET['action']) {
         case 'get_courses':
             if (isset($_GET['class_id'])) {
@@ -214,17 +244,22 @@ if (isset($_GET['action'])) {
             if (isset($_GET['class_id']) && isset($_GET['evaluation_type_id'])) {
                 $class_id = intval($_GET['class_id']);
                 $evaluation_type_id = intval($_GET['evaluation_type_id']);
-                
+
+                // Notes limitées à l'année sélectionnée (courante ou archive)
+                $matrix_period_ids = get_period_ids_for_year($conn, $selected_year);
+
                 $students = getStudentsByClass($conn, $class_id);
                 $courses = getCoursesByClass($conn, $class_id, $user_id, $user_role);
-                $grades = getGradesByClass($conn, $class_id, $evaluation_type_id);
+                $grades = getGradesByClass($conn, $class_id, $evaluation_type_id, $matrix_period_ids);
                 $maxEvals = getMaxEvaluationsPerCourse($grades, $courses, $students);
-                
+
                 echo json_encode([
                     'students' => $students,
                     'courses' => $courses,
                     'grades' => $grades,
-                    'maxEvaluations' => $maxEvals
+                    'maxEvaluations' => $maxEvals,
+                    'year' => $selected_year,
+                    'is_archive' => $is_archive_year
                 ]);
             } else {
                 echo json_encode(['error' => 'Paramètres manquants']);
@@ -1096,6 +1131,21 @@ $eval_types_result = $conn->query($eval_types_query);
                         <?php endwhile; ?>
                     </select>
                 </div>
+
+                <div class="filter-group">
+                    <label for="yearSelect">
+                        <i class="fas fa-calendar-alt"></i>
+                        Année académique
+                    </label>
+                    <select id="yearSelect" onchange="checkLoadButton()">
+                        <?php foreach ($available_years as $yr): ?>
+                            <option value="<?php echo htmlspecialchars($yr); ?>"
+                                    <?php echo $yr === $selected_year ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($yr); ?><?php echo $yr === $current_year ? ' (courante)' : ' (archive)'; ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
             </div>
 
             <button class="btn-load" onclick="loadGradesTable()" id="btnLoad" disabled>
@@ -1135,7 +1185,49 @@ $eval_types_result = $conn->query($eval_types_query);
 
     <script>
         const canAddExamGrades = <?php echo $can_add_exam_grades ? 'true' : 'false'; ?>;
+        const CURRENT_YEAR = <?php echo json_encode($current_year); ?>;
+        let currentMatrixYear = CURRENT_YEAR;
         let currentCommentInput = null;
+
+        // ── Mémorisation du dernier contexte de travail (classe / type / année) ──
+        const GM_STORE_KEY = 'uv_admin_grades_last_context';
+
+        function saveWorkContext(classId, evalTypeId, year) {
+            try {
+                localStorage.setItem(GM_STORE_KEY, JSON.stringify({ classId, evalTypeId, year }));
+            } catch (e) { /* stockage indisponible : tant pis */ }
+        }
+
+        function restoreWorkContext() {
+            let ctx = null;
+            try {
+                ctx = JSON.parse(localStorage.getItem(GM_STORE_KEY) || 'null');
+            } catch (e) { return; }
+            if (!ctx) return;
+
+            const classSel = document.getElementById('class');
+            const typeSel  = document.getElementById('evalType');
+            const yearSel  = document.getElementById('yearSelect');
+
+            // Ne restaurer que des options encore existantes (classe supprimée, etc.)
+            if (ctx.classId && classSel.querySelector(`option[value="${ctx.classId}"]`)) {
+                classSel.value = ctx.classId;
+            }
+            if (ctx.evalTypeId) {
+                const opt = typeSel.querySelector(`option[value="${ctx.evalTypeId}"]`);
+                if (opt && !opt.disabled) typeSel.value = ctx.evalTypeId;
+            }
+            if (ctx.year && yearSel.querySelector(`option[value="${ctx.year}"]`)) {
+                yearSel.value = ctx.year;
+            }
+
+            checkLoadButton();
+            if (classSel.value && typeSel.value) {
+                loadGradesTable();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', restoreWorkContext);
 
         function checkLoadButton() {
             const classId = document.getElementById('class').value;
@@ -1148,8 +1240,13 @@ $eval_types_result = $conn->query($eval_types_query);
         async function loadGradesTable() {
             const classId = document.getElementById('class').value;
             const evalTypeId = document.getElementById('evalType').value;
+            currentMatrixYear = document.getElementById('yearSelect').value || CURRENT_YEAR;
             const container = document.getElementById('tableContainer');
-            
+
+            if (classId && evalTypeId) {
+                saveWorkContext(classId, evalTypeId, currentMatrixYear);
+            }
+
             container.style.display = 'block';
             container.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-pulse"></i><p>Chargement des données...</p></div>';
 
@@ -1165,7 +1262,7 @@ $eval_types_result = $conn->query($eval_types_query);
             }
 
             try {
-                const response = await fetch(`?action=get_class_matrix&class_id=${classId}&evaluation_type_id=${evalTypeId}`);
+                const response = await fetch(`?action=get_class_matrix&class_id=${classId}&evaluation_type_id=${evalTypeId}&year=${encodeURIComponent(currentMatrixYear)}`);
                 const data = await response.json();
 
                 if (data.error) {
@@ -1188,6 +1285,8 @@ $eval_types_result = $conn->query($eval_types_query);
         function renderExcelTable(data, classId, evalTypeId) {
             const container = document.getElementById('tableContainer');
             const { students, courses, grades, maxEvaluations } = data;
+            const isArchive = !!data.is_archive;
+            const matrixYear = data.year || CURRENT_YEAR;
 
             if (students.length === 0) {
                 container.innerHTML = `
@@ -1222,14 +1321,19 @@ $eval_types_result = $conn->query($eval_types_query);
             let html = `
                 <div class="excel-table-header">
                     <h2>
-                        <i class="fas fa-users"></i> 
-                        ${students.length} étudiants - ${courses.length} cours
+                        <i class="fas fa-users"></i>
+                        ${students.length} étudiants - ${courses.length} cours — ${matrixYear}
                     </h2>
                     <button class="modal-btn modal-btn-primary" onclick="loadGradesTable()" style="padding: 10px 20px;">
                         <i class="fas fa-sync-alt"></i> Actualiser
                     </button>
                 </div>
-                
+                ${isArchive ? `
+                <div style="margin-bottom: 20px; padding: 12px 18px; border-radius: 8px; background: rgba(241, 196, 15, 0.15); border: 1px solid #f1c40f; color: #f1c40f;">
+                    <i class="fas fa-lock"></i>
+                    Année ${matrixYear} archivée — consultation seule. Repassez sur ${CURRENT_YEAR} pour modifier des notes.
+                </div>` : ''}
+
                 <div class="quick-stats">
                     <div class="stat-item">
                         <div class="stat-value">${students.length}</div>
@@ -1258,14 +1362,15 @@ $eval_types_result = $conn->query($eval_types_query);
 
             courses.forEach(course => {
                 const numEvals = maxEvaluations[course.id];
-                html += `<th colspan="${numEvals + 1}" style="background: linear-gradient(135deg, #2c3e50, #34495e); position: relative;">
+                html += `<th colspan="${numEvals + (isArchive ? 0 : 1)}" style="background: linear-gradient(135deg, #2c3e50, #34495e); position: relative;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <span>${course.name}<br><small>(Coef. ${course.coefficient})</small></span>
-                                <button onclick="addEvaluationColumn(${course.id}, ${evalTypeId}, ${classId})" 
-                                        class="btn-add-eval" 
+                                ${isArchive ? '' : `
+                                <button onclick="addEvaluationColumn(${course.id}, ${evalTypeId}, ${classId})"
+                                        class="btn-add-eval"
                                         title="Ajouter une nouvelle évaluation">
                                     <i class="fas fa-plus"></i> Nouvelle
-                                </button>
+                                </button>`}
                             </div>
                         </th>`;
             });
@@ -1281,11 +1386,13 @@ $eval_types_result = $conn->query($eval_types_query);
                         </th>
                     `;
                 }
-                html += `
-                    <th style="min-width: 110px; background: linear-gradient(135deg, rgba(46, 204, 113, 0.3), rgba(39, 174, 96, 0.3)); border: 2px dashed #2ecc71;">
-                        <span style="color: #2ecc71; font-size: 11px;">Nouvelle</span>
-                    </th>
-                `;
+                if (!isArchive) {
+                    html += `
+                        <th style="min-width: 110px; background: linear-gradient(135deg, rgba(46, 204, 113, 0.3), rgba(39, 174, 96, 0.3)); border: 2px dashed #2ecc71;">
+                            <span style="color: #2ecc71; font-size: 11px;">Nouvelle</span>
+                        </th>
+                    `;
+                }
             });
 
             html += `</tr></thead><tbody>`;
@@ -1309,10 +1416,10 @@ $eval_types_result = $conn->query($eval_types_query);
                         html += `
                             <td>
                                 <div class="grade-cell">
-                                    <input type="number" 
-                                           class="grade-input ${hasValue}" 
-                                           min="0" 
-                                           max="20" 
+                                    <input type="number"
+                                           class="grade-input ${hasValue}"
+                                           min="0"
+                                           max="20"
                                            step="0.25"
                                            value="${value}"
                                            data-student-id="${student.id}"
@@ -1320,11 +1427,10 @@ $eval_types_result = $conn->query($eval_types_query);
                                            data-eval-type-id="${evalTypeId}"
                                            data-eval-index="${i}"
                                            data-grade-id="${gradeId}"
-                                           onchange="saveGrade(this)"
-                                           onblur="saveGrade(this)"
+                                           ${isArchive ? 'disabled' : `onchange="saveGrade(this)" onblur="saveGrade(this)"`}
                                            placeholder="--">
-                                    <button class="comment-btn ${hasComment}" 
-                                            onclick="openCommentModal(this, '${comment.replace(/'/g, "&apos;")}')" 
+                                    <button class="comment-btn ${hasComment}"
+                                            onclick="openCommentModal(this, '${comment.replace(/'/g, "&apos;")}')"
                                             title="${comment || 'Ajouter un commentaire'}"
                                             data-grade-id="${gradeId}">
                                         <i class="fas fa-comment"></i>
@@ -1334,35 +1440,37 @@ $eval_types_result = $conn->query($eval_types_query);
                             </td>
                         `;
                     }
-                    
-                    html += `
-                        <td style="background: rgba(46, 204, 113, 0.05);">
-                            <div class="grade-cell">
-                                <input type="number" 
-                                       class="grade-input" 
-                                       min="0" 
-                                       max="20" 
-                                       step="0.25"
-                                       value=""
-                                       data-student-id="${student.id}"
-                                       data-course-id="${course.id}"
-                                       data-eval-type-id="${evalTypeId}"
-                                       data-eval-index="${numEvals}"
-                                       data-grade-id=""
-                                       onchange="saveGrade(this)"
-                                       onblur="saveGrade(this)"
-                                       placeholder="--"
-                                       style="border: 2px dashed #2ecc71;">
-                                <button class="comment-btn" 
-                                        onclick="openCommentModal(this, '')" 
-                                        title="Ajouter un commentaire"
-                                        data-grade-id="">
-                                    <i class="fas fa-comment"></i>
-                                </button>
-                                <span class="save-indicator"></span>
-                            </div>
-                        </td>
-                    `;
+
+                    if (!isArchive) {
+                        html += `
+                            <td style="background: rgba(46, 204, 113, 0.05);">
+                                <div class="grade-cell">
+                                    <input type="number"
+                                           class="grade-input"
+                                           min="0"
+                                           max="20"
+                                           step="0.25"
+                                           value=""
+                                           data-student-id="${student.id}"
+                                           data-course-id="${course.id}"
+                                           data-eval-type-id="${evalTypeId}"
+                                           data-eval-index="${numEvals}"
+                                           data-grade-id=""
+                                           onchange="saveGrade(this)"
+                                           onblur="saveGrade(this)"
+                                           placeholder="--"
+                                           style="border: 2px dashed #2ecc71;">
+                                    <button class="comment-btn"
+                                            onclick="openCommentModal(this, '')"
+                                            title="Ajouter un commentaire"
+                                            data-grade-id="">
+                                        <i class="fas fa-comment"></i>
+                                    </button>
+                                    <span class="save-indicator"></span>
+                                </div>
+                            </td>
+                        `;
+                    }
                 });
                 
                 html += `</tr>`;
@@ -1394,7 +1502,7 @@ $eval_types_result = $conn->query($eval_types_query);
                 formData.append('evaluation_type_id', evalTypeId);
                 formData.append('class_id', classId);
 
-                const response = await fetch('?action=add_evaluation_column', {
+                const response = await fetch('?action=add_evaluation_column&year=' + encodeURIComponent(currentMatrixYear), {
                     method: 'POST',
                     body: formData
                 });
@@ -1444,7 +1552,7 @@ $eval_types_result = $conn->query($eval_types_query);
                     formData.append('grade_id', gradeId);
                     formData.append('comment', comment);
 
-                    const response = await fetch('?action=update_comment', {
+                    const response = await fetch('?action=update_comment&year=' + encodeURIComponent(currentMatrixYear), {
                         method: 'POST',
                         body: formData
                     });
@@ -1515,7 +1623,7 @@ $eval_types_result = $conn->query($eval_types_query);
             formData.append('comment', pendingComment);
 
             try {
-                const response = await fetch('?action=save_grade', {
+                const response = await fetch('?action=save_grade&year=' + encodeURIComponent(currentMatrixYear), {
                     method: 'POST',
                     body: formData
                 });
