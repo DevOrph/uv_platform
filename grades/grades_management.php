@@ -1035,8 +1035,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_grade'])) {
 
         /* CONTENU PRINCIPAL */
         .dashboard-container {
-            max-width: 1200px;
-            margin: 20px auto;
+            /* Pleine largeur : la matrice de saisie a besoin de tout l'écran */
+            max-width: none;
+            margin: 20px 25px;
             padding: 20px;
             background: rgba(255, 255, 255, 0.1);
             border-radius: 15px;

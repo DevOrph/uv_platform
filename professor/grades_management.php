@@ -836,9 +836,10 @@ for ($i = 1; $i <= $total_pages; $i++) {
         }
 
         .container {
-            max-width: 1600px;
+            /* Pleine largeur : la matrice de saisie a besoin de tout l'écran */
+            max-width: none;
             margin: 0 auto;
-            padding: 20px;
+            padding: 20px 25px;
         }
 
         /* Boutons de basculement de vue */
